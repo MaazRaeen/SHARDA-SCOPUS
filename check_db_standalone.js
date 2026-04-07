@@ -1,6 +1,7 @@
+require('dotenv').config({ path: './backend/.env' });
 const mongoose = require('mongoose');
 
-const MONGODB_URI = 'mongodb+srv://debnatharghadeep_db_user:55X157tzDnw74upN@excel07.gstx8hy.mongodb.net/?appName=Excel07';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const shardaAuthorSchema = new mongoose.Schema({
     authorName: String,

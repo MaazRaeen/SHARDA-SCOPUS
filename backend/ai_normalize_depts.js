@@ -7,7 +7,7 @@ require('dotenv').config();
 const ShardaAuthor = require('./models/ShardaAuthor');
 const Teacher = require('./models/Teacher');
 
-const API_KEY = "AIzaSyAqIiTsSsfIMsg9mIi_6Ui2y9TGd0hZuz8"; // Provided by user
+const API_KEY = process.env.GEMINI_API_KEY; // Provided via environment variable
 const MODEL_NAME = "gemini-3-flash-preview";
 
 const canonicalDepartments = [

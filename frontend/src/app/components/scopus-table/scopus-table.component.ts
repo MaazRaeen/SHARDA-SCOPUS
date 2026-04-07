@@ -32,9 +32,29 @@ export class ScopusTableComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
-    // Set the API key
-    this.scopusService.setApiKey('d8ab3936159de21771c14450d6a64aae');
+    // Fetch the API key from the backend first
+    this.scopusService.getDefaultApiKey().subscribe({
+      next: (res) => {
+        if (res.success && res.apiKey) {
+          this.scopusService.setApiKey(res.apiKey);
+          this.executeSearch();
+        } else {
+          this.isLoading = false;
+          this.errorMessage = res.error || 'Failed to retrieve Scopus API key from server';
+        }
+      },
+      error: (err) => {
+        this.isLoading = false;
+        this.errorMessage = 'Error fetching API configuration';
+        console.error('API key fetch error:', err);
+      }
+    });
+  }
 
+  /**
+   * Execute the actual search once API key is ready
+   */
+  private executeSearch(): void {
     const params: ScopusSearchParams = {
       query: 'affil(Sharda University)',
       maxResults: 100
