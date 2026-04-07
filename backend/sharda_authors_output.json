@@ -338,5 +338,995 @@
     "country": "India",
     "afid": "118578242",
     "isSharda": true
+  },
+  {
+    "authorId": "58862764700",
+    "fullName": "Irwanjot Kaur",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57198780718",
+    "fullName": "Mansi M. Sharma",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60241658400",
+    "fullName": "Karen Jaison",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57208691509",
+    "fullName": "Pankaj Kumar Tripathi",
+    "university": "Sharda University",
+    "department": "Department of Physics",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578245",
+    "isSharda": true
+  },
+  {
+    "authorId": "57191598251",
+    "fullName": "A. Agarwal",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59137147000",
+    "fullName": "John Ayuba Godwin",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "57218165868",
+    "fullName": "Shruti P. Singh",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "60191394400",
+    "fullName": "Ishaku Joshua Dibal",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "60240738300",
+    "fullName": "Amit Kumar Gupta",
+    "university": "Sharda University",
+    "department": "Department of Radiology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600609",
+    "isSharda": true
+  },
+  {
+    "authorId": "59308867800",
+    "fullName": "Zarine Khan",
+    "university": "Sharda University",
+    "department": "Department of Microbiology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600607",
+    "isSharda": true
+  },
+  {
+    "authorId": "60334121200",
+    "fullName": "Rachna Rohtagi",
+    "university": "Sharda University",
+    "department": "Department of Anatomy",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600605",
+    "isSharda": true
+  },
+  {
+    "authorId": "59673181300",
+    "fullName": "D. Barani",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57226676144",
+    "fullName": "Bhumesh Tyagi",
+    "university": "Sharda University",
+    "department": "School of Medical Sciences and Research",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578266",
+    "isSharda": true
+  },
+  {
+    "authorId": "60369991000",
+    "fullName": "Abdullahi Abdulkadir",
+    "university": "Sharda University",
+    "department": "Department of Physics & Environment Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132540764",
+    "isSharda": true
+  },
+  {
+    "authorId": "57205756327",
+    "fullName": "Har Mohan Singh",
+    "university": "Sharda University",
+    "department": "Department of Physics & Environment Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132540764",
+    "isSharda": true
+  },
+  {
+    "authorId": "60369184500",
+    "fullName": "Lavi Aluna",
+    "university": "Sharda University",
+    "department": "Department of Physics & Environment Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132540764",
+    "isSharda": true
+  },
+  {
+    "authorId": "35234762000",
+    "fullName": "Pramod Kumar Singh",
+    "university": "Sharda Group Of Institutions",
+    "department": "Sharda Group Of Institutions",
+    "city": "New Delhi",
+    "country": "India",
+    "afid": "60100974",
+    "isSharda": true
+  },
+  {
+    "authorId": "59424064700",
+    "fullName": "Kavita Goyal",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60245135100",
+    "fullName": "Gunjan Singh",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57193232212",
+    "fullName": "Pankaj Bansal",
+    "university": "Sharda University",
+    "department": "Department of Medicine",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578248",
+    "isSharda": true
+  },
+  {
+    "authorId": "57489832100",
+    "fullName": "Manoj Kumar Ojha",
+    "university": "Sharda University",
+    "department": "Sharda School of Engineering and Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132666733",
+    "isSharda": true
+  },
+  {
+    "authorId": "60361965700",
+    "fullName": "Bhavin Parekh",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59987142800",
+    "fullName": "Rohan Poudel",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Applications",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "130791259",
+    "isSharda": true
+  },
+  {
+    "authorId": "60341863100",
+    "fullName": "Pollob Mollick Raza",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Applications",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "130791259",
+    "isSharda": true
+  },
+  {
+    "authorId": "60341768500",
+    "fullName": "Anand Patwa",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Applications",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "130791259",
+    "isSharda": true
+  },
+  {
+    "authorId": "60342228000",
+    "fullName": "Gungun Kumari",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Applications",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "130791259",
+    "isSharda": true
+  },
+  {
+    "authorId": "57212138773",
+    "fullName": "Bodduru Kamesh",
+    "university": "Sharda University",
+    "department": "Department of Mechanical Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600613",
+    "isSharda": true
+  },
+  {
+    "authorId": "57200584420",
+    "fullName": "Vikas Sharma",
+    "university": "Sharda University",
+    "department": "Department of Pharmacology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578237",
+    "isSharda": true
+  },
+  {
+    "authorId": "58082853200",
+    "fullName": "Mohini Singh",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "60321297400",
+    "fullName": "Shoaib Khan",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "57672913100",
+    "fullName": "Arpita Roy",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60310369700",
+    "fullName": "Amit Singh Pawaiya",
+    "university": "Sharda University",
+    "department": "Department of Community Medicine",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578250",
+    "isSharda": true
+  },
+  {
+    "authorId": "60200604700",
+    "fullName": "Himanshu Sharma",
+    "university": "Sharda University",
+    "department": "Department of CSE",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600619",
+    "isSharda": true
+  },
+  {
+    "authorId": "59318450100",
+    "fullName": "Ankit Batra",
+    "university": "Sharda University",
+    "department": "Department of Orthopaedics",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578247",
+    "isSharda": true
+  },
+  {
+    "authorId": "60260047100",
+    "fullName": "Kajal Rana",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "60259862700",
+    "fullName": "Sristi Kumari",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "56304379000",
+    "fullName": "Garima Chouhan",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "60092186600",
+    "fullName": "Dev Sehgal",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "60259816600",
+    "fullName": "Praveen Yadav",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "57207798384",
+    "fullName": "Abhay Tiwari",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60255575100",
+    "fullName": "Rohit Saxena",
+    "university": "Sharda University",
+    "department": "Department of Ear",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "133540899",
+    "isSharda": true
+  },
+  {
+    "authorId": "58349623400",
+    "fullName": "Suneyana Rawat",
+    "university": "Sharda University",
+    "department": "Department of Physics & Environment Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132540764",
+    "isSharda": true
+  },
+  {
+    "authorId": "7407268050",
+    "fullName": "Ram Chandra Singh",
+    "university": "Sharda University",
+    "department": "Department of Physics & Environment Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132540764",
+    "isSharda": true
+  },
+  {
+    "authorId": "57709391800",
+    "fullName": "S. Ali",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57213216893",
+    "fullName": "Dayanand Sharma",
+    "university": "Sharda University",
+    "department": "Department of Civil Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578242",
+    "isSharda": true
+  },
+  {
+    "authorId": "57208405836",
+    "fullName": "Tushar Bansal",
+    "university": "Sharda University",
+    "department": "Department of Civil Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578242",
+    "isSharda": true
+  },
+  {
+    "authorId": "57195149782",
+    "fullName": "Nilofer Naqvi",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "57195761715",
+    "fullName": "Anwar Alam",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "58525754100",
+    "fullName": "Yashika Ahuja",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "57210232856",
+    "fullName": "Seyed Ehtesham Hasnain",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "6701422131",
+    "fullName": "Nasreen Z. Ehtesham",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "58773483300",
+    "fullName": "Vinita Sherlin Vinita",
+    "university": "Sharda University",
+    "department": "Department of Chemistry and Biochemistry",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121316083",
+    "isSharda": true
+  },
+  {
+    "authorId": "56624744900",
+    "fullName": "Geeta Durga",
+    "university": "Sharda University",
+    "department": "Department of Chemistry and Biochemistry",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121316083",
+    "isSharda": true
+  },
+  {
+    "authorId": "60174918400",
+    "fullName": "Amrita",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59935679000",
+    "fullName": "Mehraj Ud Din Wani",
+    "university": "Sharda University",
+    "department": "School of Business Studies",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118654126",
+    "isSharda": true
+  },
+  {
+    "authorId": "57216930781",
+    "fullName": "Deepa Kumari",
+    "university": "Sharda University",
+    "department": "School of Business Studies",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118654126",
+    "isSharda": true
+  },
+  {
+    "authorId": "57205467163",
+    "fullName": "Honey Mittal",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "60259699700",
+    "fullName": "Anita Devi",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59941677500",
+    "fullName": "Nayera Anjum",
+    "university": "Sharda University",
+    "department": "Department of Chemistry and Biochemistry",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121316083",
+    "isSharda": true
+  },
+  {
+    "authorId": "56038936700",
+    "fullName": "Suman Mallick",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60375630600",
+    "fullName": "Ashu Goyal",
+    "university": "Sharda University",
+    "department": "Sharda School of Engineering and Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132666733",
+    "isSharda": true
+  },
+  {
+    "authorId": "57225853834",
+    "fullName": "Ankur Sharma",
+    "university": "Sharda University",
+    "department": "Department of Anatomy",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600605",
+    "isSharda": true
+  },
+  {
+    "authorId": "59035743700",
+    "fullName": "P. K. Mishra",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578243",
+    "isSharda": true
+  },
+  {
+    "authorId": "59498993400",
+    "fullName": "Bhavik Jain",
+    "university": "Sharda University",
+    "department": "Sharda School of Engineering and Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132666733",
+    "isSharda": true
+  },
+  {
+    "authorId": "59978370000",
+    "fullName": "Manish Kumar",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59049939700",
+    "fullName": "Sandeep Kumar Singh",
+    "university": "Sharda University",
+    "department": "Department of EECE",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "126086918",
+    "isSharda": true
+  },
+  {
+    "authorId": "60192491000",
+    "fullName": "Debashis K. Dutta",
+    "university": "Sharda University",
+    "department": "Sharda School of Engineering and Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132666733",
+    "isSharda": true
+  },
+  {
+    "authorId": "57192586789",
+    "fullName": "Khursheed Alam",
+    "university": "Sharda University",
+    "department": "Department of Mathematics and Data Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "131979123",
+    "isSharda": true
+  },
+  {
+    "authorId": "57190262066",
+    "fullName": "Paratpar Sarkar",
+    "university": "Sharda University",
+    "department": "Department of Chemistry and Biochemistry",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121316083",
+    "isSharda": true
+  },
+  {
+    "authorId": "57190220276",
+    "fullName": "Mridula Guin",
+    "university": "Sharda University",
+    "department": "Department of Chemistry and Biochemistry",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121316083",
+    "isSharda": true
+  },
+  {
+    "authorId": "59685447500",
+    "fullName": "Vivek Srivastava",
+    "university": "Sharda University",
+    "department": "Department of Chemistry and Biochemistry",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121316083",
+    "isSharda": true
+  },
+  {
+    "authorId": "56219683600",
+    "fullName": "S. Shankara Narayanan",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57205682539",
+    "fullName": "Yadala Sucharitha",
+    "university": "Sharda University",
+    "department": "Department of CSE",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600619",
+    "isSharda": true
+  },
+  {
+    "authorId": "57212490042",
+    "fullName": "Vasala Saicharan",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60249420400",
+    "fullName": "Sushmita Saha",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "60278478500",
+    "fullName": "Sandeep Kumar Shukla",
+    "university": "Sharda University",
+    "department": "Department of Pharmacy",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "121082544",
+    "isSharda": true
+  },
+  {
+    "authorId": "60021620600",
+    "fullName": "Jyoti Malik",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60256950700",
+    "fullName": "Jyoti Gautam",
+    "university": "Sharda University",
+    "department": "Department of CSE",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600619",
+    "isSharda": true
+  },
+  {
+    "authorId": "60021622800",
+    "fullName": "Akanksha Namdeo",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "57202688440",
+    "fullName": "Pawan Singh Dhapola",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57217127983",
+    "fullName": "Shubham Kathuria",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "59188293000",
+    "fullName": "Neelam Rawat",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "60247509100",
+    "fullName": "Swati Sharma",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57253458400",
+    "fullName": "Devendra Kumar Singh",
+    "university": "Sharda University",
+    "department": "Department of Respiratory Medicine",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118734871",
+    "isSharda": true
+  },
+  {
+    "authorId": "60217589500",
+    "fullName": "Aditya Kumar Singh",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "56955541100",
+    "fullName": "Kiranmai Vadapalli",
+    "university": "Sharda University",
+    "department": "Department of Physiology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600606",
+    "isSharda": true
+  },
+  {
+    "authorId": "60177721800",
+    "fullName": "Anupam Agarwal",
+    "university": "Sharda University",
+    "department": "Sharda School of Engineering and Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132666733",
+    "isSharda": true
+  },
+  {
+    "authorId": "59510123800",
+    "fullName": "Anjali Varshney",
+    "university": "Sharda University",
+    "department": "Department of Environmental Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578246",
+    "isSharda": true
+  },
+  {
+    "authorId": "37021165700",
+    "fullName": "Sunil Chauhan",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60370510800",
+    "fullName": "Saicharan Vasala",
+    "university": "Sharda University",
+    "department": "Department of Civil Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578242",
+    "isSharda": true
+  },
+  {
+    "authorId": "60002296900",
+    "fullName": "Bodduru Kamesh",
+    "university": "Sharda University",
+    "department": "Department of Mechanical Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600613",
+    "isSharda": true
+  },
+  {
+    "authorId": "57420968600",
+    "fullName": "Dhirendra Kumar Verma",
+    "university": "Sharda University",
+    "department": "Department of Mechanical Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118600613",
+    "isSharda": true
+  },
+  {
+    "authorId": "57219301154",
+    "fullName": "Kumar Vijay Sandeep",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "57210698665",
+    "fullName": "Sally Lukose",
+    "university": "Sharda University",
+    "department": "Sharda School of Allied and Healthcare Sciences",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "132433467",
+    "isSharda": true
+  },
+  {
+    "authorId": "59370184500",
+    "fullName": "Km.Rakhi",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "58773053400",
+    "fullName": "Rittik Bhati",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "57216483507",
+    "fullName": "Monika Jain",
+    "university": "Sharda University",
+    "department": "Department of Biotechnology",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578238",
+    "isSharda": true
+  },
+  {
+    "authorId": "59636207000",
+    "fullName": "Amit Kumar Singh",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "35071743100",
+    "fullName": "Jayaraman Muthukumaran",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
   }
 ]
