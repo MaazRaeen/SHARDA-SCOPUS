@@ -1328,5 +1328,115 @@
     "country": "India",
     "afid": "60108680",
     "isSharda": true
+  },
+  {
+    "authorId": "57697450100",
+    "fullName": "Zatin Gupta",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59812422200",
+    "fullName": "Naman Kaushik",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "59809054100",
+    "fullName": "Jayant Baisla",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "58355941400",
+    "fullName": "Rashmi Rathi Upadhyay",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Engineering",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "118578243",
+    "isSharda": true
+  },
+  {
+    "authorId": "59915592600",
+    "fullName": "Supriya Saxena",
+    "university": "Sharda University",
+    "department": "Sharda University",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "60108680",
+    "isSharda": true
+  },
+  {
+    "authorId": "60377714500",
+    "fullName": "Shiv Kumar Verma",
+    "university": "Sharda University",
+    "department": "Department of Computer Science and Applications",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "130791259",
+    "isSharda": true
+  },
+  {
+    "authorId": "60374553600",
+    "fullName": "Prashasti Singh",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "58281320600",
+    "fullName": "Ramesh Joshi",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "60374707900",
+    "fullName": "Hussaini Umara Bulakarima",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "60375507400",
+    "fullName": "Amarjeet Yadav",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
+  },
+  {
+    "authorId": "60374553700",
+    "fullName": "Ibrahim Baba Shehu",
+    "university": "Sharda University",
+    "department": "Department of Life Science",
+    "city": "Greater Noida",
+    "country": "India",
+    "afid": "123505146",
+    "isSharda": true
   }
 ]
