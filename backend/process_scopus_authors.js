@@ -1,9 +1,12 @@
 const fs = require('fs');
 const csv = require('csv-parser');
-const https = require('https');
+const axios = require('axios');
 const path = require('path');
 const { Parser } = require('json2csv');
+const pLimit = require('p-limit');
 require('dotenv').config();
+
+const limit = pLimit(2); // control concurrency - lowered back for safety
 
 const API_KEY = process.env.SCOPUS_API_KEY;
 const SHARDA_AFID = '60108680';
@@ -20,43 +23,42 @@ function saveCache() {
     fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2));
 }
 
-function fetchWithRetry(url, headers, retries = 3) {
-    return new Promise((resolve, reject) => {
-        const attempt = (n) => {
-            https.get(url, { headers }, (res) => {
-                let data = '';
-                res.on('data', (chunk) => data += chunk);
-                res.on('end', () => {
-                    if (res.statusCode === 200) {
-                        try {
-                            resolve(JSON.parse(data));
-                        } catch (e) {
-                            reject(new Error(`JSON Parse Error: ${e.message}`));
-                        }
-                    } else if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
-                        console.log(`Redirecting to ${res.headers.location}...`);
-                        fetchWithRetry(res.headers.location, headers, n).then(resolve).catch(reject);
-                    } else if (res.statusCode === 429 && n > 0) {
-                        console.log(`Rate limited, retrying in 5s... (${n} retries left)`);
-                        setTimeout(() => attempt(n - 1), 5000);
-                    } else {
-                        reject(new Error(`API Error: ${res.statusCode} for ${url}`));
-                    }
-                });
-            }).on('error', (err) => {
-                if (n > 0) {
-                    console.log(`Error: ${err.message}, retrying...`);
-                    setTimeout(() => attempt(n - 1), 2000);
-                } else {
-                    reject(err);
-                }
-            });
-        };
-        attempt(retries);
-    });
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function getAuthorDetails(authorId) {
+async function fetchWithRetry(url, headers, retries = 5, delay = 2000) {
+    try {
+        const response = await axios.get(url, { headers, timeout: 30000 });
+        return response.data;
+    } catch (err) {
+        const status = err.response?.status;
+        if (status === 429 && retries > 0) {
+            const retryAfter = err.response.headers["retry-after"];
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : delay;
+
+            console.log(`\n[429] Rate limited on ${url}. Retrying in ${waitTime}ms... (${retries} left)`);
+            await sleep(waitTime);
+            return fetchWithRetry(url, headers, retries - 1, delay * 2);
+        }
+        
+        if (status === 401) {
+            console.error(`\n[401] Unauthorized. Check your API key.`);
+            throw new Error('Unauthorized');
+        }
+
+        if (retries > 0 && (!status || status >= 500)) {
+            console.log(`\n[${status || 'Error'}] Retrying ${url} in ${delay}ms...`);
+            await sleep(delay);
+            return fetchWithRetry(url, headers, retries - 1, delay * 2);
+        }
+
+        console.error(`\nFailed: ${url} | Status: ${status || err.message}`);
+        return null;
+    }
+}
+
+async function getAuthorDetails(authorId, isPriority = false) {
     if (cache[authorId]) return cache[authorId];
 
     const url = `https://api.elsevier.com/content/author/author_id/${authorId}?view=ENHANCED`;
@@ -66,7 +68,10 @@ async function getAuthorDetails(authorId) {
     };
 
     try {
+        if (!isPriority) await sleep(500); // slight stagger for non-priority - increased for safety
         const response = await fetchWithRetry(url, headers);
+        if (!response) return null;
+
         const entry = response['author-retrieval-response']?.[0];
         if (!entry) return null;
 
@@ -163,10 +168,10 @@ async function processCSV(filePath) {
     const results = [];
 
     return new Promise((resolve, reject) => {
+        console.log(`Reading CSV: ${filePath}`);
         fs.createReadStream(filePath)
             .pipe(csv())
             .on('data', (row) => {
-                // Scopus CSV headers often have "Author(s) ID"
                 const ids = row['Author(s) ID'] || '';
                 if (ids) {
                     ids.split(';').forEach(id => {
@@ -176,27 +181,49 @@ async function processCSV(filePath) {
                 }
             })
             .on('end', async () => {
-                console.log(`Found ${uniqueAuthorIds.size} unique Author IDs.`);
-                let count = 0;
-                for (const authorId of uniqueAuthorIds) {
-                    count++;
-                    process.stdout.write(`\rProcessing ${count}/${uniqueAuthorIds.size}...`);
-                    const details = await getAuthorDetails(authorId);
-                    if (details && details.isSharda) {
-                        results.push(details);
-                        // Save JSON periodically
-                        if (results.length % 5 === 0) {
-                            fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
+                const authorIds = Array.from(uniqueAuthorIds);
+                console.log(`Found ${authorIds.length} unique Author IDs.`);
+                
+                const batchSize = 50;
+                let processedCount = 0;
+
+                for (let i = 0; i < authorIds.length; i += batchSize) {
+                    const batch = authorIds.slice(i, i + batchSize);
+                    console.log(`\n--- Starting Batch ${Math.floor(i / batchSize) + 1} (${batch.length} authors) ---`);
+
+                    const batchPromises = batch.map(id =>
+                        limit(async () => {
+                            const details = await getAuthorDetails(id);
+                            processedCount++;
+                            if (processedCount % 10 === 0 || processedCount === authorIds.length) {
+                                process.stdout.write(`\rProgress: ${processedCount}/${authorIds.length} authors processed...`);
+                            }
+                            return details;
+                        })
+                    );
+
+                    const batchResults = await Promise.all(batchPromises);
+                    
+                    // Filter and add to final results
+                    batchResults.forEach(details => {
+                        if (details && details.isSharda) {
+                            results.push(details);
                         }
-                    }
-                    // Avoid hitting rate limits too hard if many new IDs
-                    if (!cache[authorId]) {
-                        await new Promise(r => setTimeout(r, 2000)); // 2000ms delay for new items
+                    });
+
+                    // Periodic save
+                    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
+                    saveCache();
+
+                    if (i + batchSize < authorIds.length) {
+                        console.log(`\nBatch complete. Cooling down for 8 seconds...`);
+                        await sleep(8000);
                     }
                 }
-                console.log(`\nFound ${results.length} Sharda University authors.`);
+
+                console.log(`\n\nFinished. Found ${results.length} Sharda University authors.`);
                 
-                // Save JSON
+                // Final Save JSON
                 fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
                 
                 // Save CSV
@@ -214,7 +241,10 @@ async function processCSV(filePath) {
                 
                 resolve(results);
             })
-            .on('error', reject);
+            .on('error', (err) => {
+                console.error('CSV Parsing Error:', err);
+                reject(err);
+            });
     });
 }
 
