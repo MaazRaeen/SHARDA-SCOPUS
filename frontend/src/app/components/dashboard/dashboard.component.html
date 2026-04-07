@@ -1,0 +1,1437 @@
+<app-navbar *ngIf="!isPersonalDash" [showBackButton]="true"></app-navbar>
+
+<div class="dashboard-container" *ngIf="!isPersonalDash">
+
+  <!-- ── Premium Hero Header (Global Analytics) ── -->
+  <header class="dashboard-hero" *ngIf="!isPersonalDash">
+    <!-- Animated background orbs -->
+    <div class="hero-orb orb-1"></div>
+    <div class="hero-orb orb-2"></div>
+    <div class="hero-orb orb-3"></div>
+
+    <div class="hero-inner">
+      <!-- Left: Branding + Title -->
+      <div class="hero-left">
+        <div class="hero-badge">
+          <span class="badge-dot"></span>
+          Sharda University · Research Portal
+        </div>
+        <h1 class="hero-title">Analytics Dashboard</h1>
+        <p class="hero-subtitle">Real-time insights into department-wise research output, citations, and faculty impact.
+        </p>
+
+        <!-- Quick Nav Chips -->
+        <div class="hero-chips">
+          <a routerLink="/papers" class="chip">📄 Papers</a>
+          <a routerLink="/teacher-statistics" class="chip">📈 Teacher Stats</a>
+          <a routerLink="/upload" class="chip">📤 Upload Data</a>
+        </div>
+      </div>
+
+      <!-- Right: Live Date + Summary Pill -->
+      <div class="hero-right">
+        <div class="hero-date-card">
+          <div class="date-icon">📅</div>
+          <div class="date-text">
+            <span class="date-label">Last Updated</span>
+            <span class="date-value">{{ today }}</span>
+          </div>
+        </div>
+        <div class="hero-stat-pill" *ngIf="analyticsData">
+          <div class="hero-mini-stat">
+            <span class="hms-value">{{ analyticsData.totalPapers }}</span>
+            <span class="hms-label">Papers</span>
+          </div>
+          <div class="hms-divider"></div>
+          <div class="hero-mini-stat clickable-count" (click)="showGlobalAuthors()">
+            <span class="hms-value">{{ analyticsData.totalAuthors }}</span>
+            <span class="hms-label">Authors</span>
+          </div>
+          <div class="hms-divider"></div>
+          <div class="hero-mini-stat">
+            <span class="hms-value">{{ analyticsData.departments?.length }}</span>
+            <span class="hms-label">Depts</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+
+  <!-- ── Master Department Filter Bar ── -->
+  <div class="master-filter-bar" [class.has-filter]="selectedDept" *ngIf="!isPersonalDash">
+    <div class="filter-inner">
+      <div class="filter-label">
+        <span class="material-icons">filter_list</span>
+        <span>Filter by Department</span>
+      </div>
+
+      <!-- Searchable dropdown -->
+      <div class="filter-search-wrap">
+        <div class="filter-input-box" [class.open]="showDeptDropdown">
+          <span class="material-icons filter-search-icon">search</span>
+          <input type="text" class="filter-search-input" placeholder="Search department…" [(ngModel)]="deptSearch"
+            (focus)="showDeptDropdown = true" (input)="showDeptDropdown = true">
+          <button *ngIf="deptSearch" class="filter-clear-input" (click)="clearDeptFilter()">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+
+        <ul class="filter-dropdown" *ngIf="showDeptDropdown && filteredDeptOptions.length">
+          <li *ngFor="let dept of filteredDeptOptions" class="filter-option" [class.selected]="dept === selectedDept"
+            (click)="filterByDept(dept)">
+            <span class="material-icons">business</span>
+            {{ dept }}
+          </li>
+        </ul>
+      </div>
+
+      <!-- Active filter badge -->
+      <div class="active-filter-pill" *ngIf="selectedDept">
+        <span class="material-icons">layers</span>
+        <span>{{ selectedDept }}</span>
+        <button (click)="clearDeptFilter()" class="pill-close">
+          <span class="material-icons">cancel</span>
+        </button>
+      </div>
+
+      <!-- Date Range Filter -->
+      <div class="filter-date-wrap">
+        <button class="date-trigger-btn" (click)="toggleDatePopover()" [class.active]="startDate || endDate">
+          <span class="material-icons">calendar_today</span>
+          <span class="date-trigger-label">{{ getDateDisplayLabel() }}</span>
+          <span class="material-icons trigger-arrow">expand_more</span>
+        </button>
+
+        <!-- Date Selection Popover -->
+        <div class="date-popover" *ngIf="showDatePopover">
+          <div class="popover-tabs">
+            <button (click)="dateFilterMode = 'year'" [class.active]="dateFilterMode === 'year'">Year</button>
+            <button (click)="dateFilterMode = 'month'" [class.active]="dateFilterMode === 'month'">Month</button>
+            <button (click)="dateFilterMode = 'range'" [class.active]="dateFilterMode === 'range'">Custom</button>
+          </div>
+
+          <div class="popover-content">
+            <!-- Year Selector -->
+            <div *ngIf="dateFilterMode === 'year'" class="year-grid">
+              <button *ngFor="let year of availableYears" (click)="selectYear(year)"
+                [class.selected]="startDate === year + '-01-01' && endDate === year + '-12-31'">
+                {{ year }}
+              </button>
+            </div>
+
+            <!-- Month Selector -->
+            <div *ngIf="dateFilterMode === 'month'" class="month-selector">
+              <div class="month-year-nav">
+                <button (click)="selectedFilterYear = selectedFilterYear - 1"><span
+                    class="material-icons">chevron_left</span></button>
+                <span>{{ selectedFilterYear }}</span>
+                <button (click)="selectedFilterYear = selectedFilterYear + 1"><span
+                    class="material-icons">chevron_right</span></button>
+              </div>
+              <div class="month-grid">
+                <button *ngFor="let m of months" (click)="selectMonth(m.value)"
+                  [class.selected]="startDate === selectedFilterYear + '-' + (m.value < 10 ? '0' + m.value : m.value) + '-01'">
+                  {{ m.name.substring(0, 3) }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Range -->
+            <div *ngIf="dateFilterMode === 'range'" class="range-selector">
+              <div class="range-inputs">
+                <div class="range-input-box">
+                  <label>Start</label>
+                  <input type="date" [(ngModel)]="startDate">
+                </div>
+                <div class="range-input-box">
+                  <label>End</label>
+                  <input type="date" [(ngModel)]="endDate">
+                </div>
+              </div>
+              <button class="apply-range-btn" (click)="onDateChange(); showDatePopover = false">Apply Range</button>
+            </div>
+          </div>
+
+          <div class="popover-footer">
+            <button class="clear-btn" (click)="clearDateFilter()">Clear All</button>
+            <button class="close-btn" (click)="showDatePopover = false">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading indicator -->
+      <div class="filter-loading" *ngIf="isLoading">
+        <div class="mini-spinner"></div>
+        <span>Loading…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-container">
+    <div class="spinner"></div>
+    <p>Loading analytics...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="errorMessage && !isLoading" class="error-container">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="12"></line>
+      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+    </svg>
+    <p>{{ errorMessage }}</p>
+    <button (click)="loadAnalytics()" class="btn-primary">Retry</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="analyticsData && !isLoading && !isPersonalDash" class="dashboard-content">
+    <!-- Summary Stats -->
+    <div class="kpi-grid">
+
+      <!-- Total Papers -->
+      <div class="kpi-card kpi-blue" style="cursor: pointer;" (click)="showAllPapers()" title="View Published Papers">
+        <div class="kpi-glow"></div>
+        <div class="kpi-top">
+          <div class="kpi-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+          </div>
+          <span class="kpi-trend kpi-trend-up">↑ Active</span>
+        </div>
+        <div class="kpi-value">{{ analyticsData.totalPapers | number }}</div>
+        <div class="kpi-label">Total Papers</div>
+        <div class="kpi-desc">Indexed research publications</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:88%"></div>
+        </div>
+        <div class="kpi-see-more">See More →</div>
+      </div>
+
+      <!-- Unique Authors -->
+      <div class="kpi-card kpi-green">
+        <div class="kpi-glow"></div>
+        <div class="kpi-top">
+          <div class="kpi-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <span class="kpi-trend kpi-trend-up">↑ Growing</span>
+        </div>
+        <div class="kpi-value">{{ analyticsData.totalAuthors | number }}</div>
+        <div class="kpi-label">Sharda Authors</div>
+        <div class="kpi-desc">Unique faculty contributors</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:72%"></div>
+        </div>
+      </div>
+
+      <!-- Departments -->
+      <div class="kpi-card kpi-violet">
+        <div class="kpi-glow"></div>
+        <div class="kpi-top">
+          <div class="kpi-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+          </div>
+          <span class="kpi-trend kpi-trend-neutral">● Stable</span>
+        </div>
+        <div class="kpi-value">{{ analyticsData.totalDepartments }}</div>
+        <div class="kpi-label">Departments</div>
+        <div class="kpi-desc">Active research units</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:100%"></div>
+        </div>
+      </div>
+
+      <!-- Total Citations -->
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-glow"></div>
+        <div class="kpi-top">
+          <div class="kpi-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+            </svg>
+          </div>
+          <span class="kpi-trend kpi-trend-up">↑ High</span>
+        </div>
+        <div class="kpi-value">{{ analyticsData.totalCitations || 0 | number }}</div>
+        <div class="kpi-label">Total Citations</div>
+        <div class="kpi-desc">Global research impact</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:95%"></div>
+        </div>
+      </div>
+
+      <!-- H-Index -->
+      <div class="kpi-card kpi-cyan">
+        <div class="kpi-glow"></div>
+        <div class="kpi-top">
+          <div class="kpi-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+          </div>
+          <span class="kpi-trend kpi-trend-up">↑ Strong</span>
+        </div>
+        <div class="kpi-value">{{ analyticsData.universityHIndex || 0 }}</div>
+        <div class="kpi-label">University H-Index</div>
+        <div class="kpi-desc">Scholarly influence score</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:65%"></div>
+        </div>
+      </div>
+
+      <!-- Avg Citations -->
+      <div class="kpi-card kpi-rose">
+        <div class="kpi-glow"></div>
+        <div class="kpi-top">
+          <div class="kpi-icon-wrap">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="20" x2="12" y2="10"></line>
+              <line x1="18" y1="20" x2="18" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="16"></line>
+            </svg>
+          </div>
+          <span class="kpi-trend kpi-trend-up">↑ Per paper</span>
+        </div>
+        <div class="kpi-value">{{ analyticsData.avgCitations || 0 }}</div>
+        <div class="kpi-label">Avg Citations</div>
+        <div class="kpi-desc">Per published paper</div>
+        <div class="kpi-bar">
+          <div class="kpi-bar-fill" style="width:55%"></div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- Top Authors & Recent Papers Grid -->
+    <div class="grid-2-cols">
+
+      <!-- ── Top Contributors (Leaderboard) ── -->
+      <div class="premium-card contributors-card">
+        <div class="pcard-header">
+          <div class="pcard-icon-wrap contributors-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="pcard-title">Top Contributors</h2>
+            <p class="pcard-subtitle">Ranked by {{ selectedPaperType || 'all' }} publications</p>
+          </div>
+          <div class="header-actions" style="margin-left: auto;">
+            <select class="paper-type-select" [(ngModel)]="selectedPaperType" (change)="onPaperTypeFilterChange()">
+              <option value="">All Types</option>
+              <option *ngFor="let pt of availablePaperTypes" [value]="pt">{{ pt }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="leaderboard" *ngIf="topContributorsFiltered.length > 0">
+          <div class="lb-row" *ngFor="let author of topContributorsFiltered; let i = index; trackBy: trackByAuthorName">
+            <!-- Medal / Rank -->
+            <div class="lb-rank" [class.gold]="i===0" [class.silver]="i===1" [class.bronze]="i===2" [class.plain]="i>2">
+              <span *ngIf="i===0">🥇</span>
+              <span *ngIf="i===1">🥈</span>
+              <span *ngIf="i===2">🥉</span>
+              <span *ngIf="i>2">{{ i + 1 }}</span>
+            </div>
+            <!-- Avatar initial -->
+            <div class="lb-avatar" [style.background]="'hsl(' + (i * 47 + 200) + ',70%,55%)'">
+              {{ (author.name | authorName).charAt(0) }}
+            </div>
+            <!-- Info + bar -->
+            <div class="lb-info">
+              <div class="lb-name">{{ author.name | authorName }}</div>
+              <div class="lb-bar-row">
+                <div class="lb-bar-track">
+                  <div class="lb-bar-fill"
+                    [style.width]="((selectedPaperType ? (author.byType?.[selectedPaperType] || 0) : author.count) / (selectedPaperType ? (topContributorsFiltered[0]?.byType?.[selectedPaperType] || 1) : (topContributorsFiltered[0]?.count || 1)) * 100) + '%'"
+                    [style.background]="'hsl(' + (i * 47 + 200) + ',70%,55%)'"></div>
+                </div>
+                <span class="lb-count">{{ selectedPaperType ? (author.byType?.[selectedPaperType] || 0) : author.count
+                  }}</span>
+              </div>
+            </div>
+            <!-- H-Index pill -->
+            <div class="lb-hindex" *ngIf="author.hIndex">H{{ author.hIndex }}</div>
+            <!-- Citations pill -->
+            <div class="lb-cited" *ngIf="author.totalCitations">{{ author.totalCitations | number }}</div>
+          </div>
+          <div class="empty-list" *ngIf="!topContributorsFiltered?.length">No author data available</div>
+        </div>
+      </div>
+
+      <!-- ── Filtered Authors ── -->
+      <div class="premium-card publications-card">
+        <div class="pcard-header">
+          <div class="pcard-icon-wrap publications-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="pcard-title">Filtered Authors</h2>
+            <p class="pcard-subtitle">Explore authors by publication count</p>
+          </div>
+          <div class="header-actions" style="margin-left: auto; position: relative;">
+            <button class="filter-icon-btn" (click)="toggleAuthorFiltersPopover()"
+              [class.active]="authorMinPapers !== null || authorMaxPapers !== null" title="Filter Authors by Papers">
+              <span class="material-icons" style="font-size: 18px;">filter_list</span>
+            </button>
+
+            <!-- Filtered Authors Popover -->
+            <div class="recent-popover" *ngIf="showAuthorFiltersPopover">
+              <div class="popover-header">
+                <h4>Filter by Paper Count</h4>
+                <button class="close-btn" (click)="showAuthorFiltersPopover = false"><span class="material-icons"
+                    style="font-size: 16px;">close</span></button>
+              </div>
+              <div class="popover-body">
+                <div class="filter-group num-authors">
+                  <label>Paper Range</label>
+                  <div class="range-inputs">
+                    <input type="number" placeholder="Min" min="0" [(ngModel)]="tempAuthorMinPapers">
+                    <span>-</span>
+                    <input type="number" placeholder="Max" min="1" [(ngModel)]="tempAuthorMaxPapers">
+                  </div>
+                </div>
+              </div>
+              <div class="popover-footer" style="margin-top: 1.25rem;">
+                <button class="clear-btn" (click)="clearAuthorFilters()">Clear</button>
+                <button class="apply-btn" (click)="applyAuthorFilters()">Apply Filters</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pub-list">
+          <div class="pub-item" *ngFor="let author of filteredAuthors">
+            <div class="pub-year-col">
+              <!-- Using the same badge style but mapping to total papers -->
+              <span class="pub-year"
+                style="color: #6366f1; background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3);">
+                {{ author.count }} P
+              </span>
+            </div>
+            <div class="pub-body">
+              <span class="pub-title">{{ author.name | authorName }}</span>
+              <div class="pub-footer" style="margin-top: 5px;">
+                <span class="pub-type-badge"
+                  style="background: rgba(192, 38, 211, 0.15); color: #e879f9; border: 1px solid rgba(192, 38, 211, 0.3);"
+                  *ngIf="author.hIndex">
+                  H-Index: {{ author.hIndex }}
+                </span>
+                <span class="pub-type-badge"
+                  style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);"
+                  *ngIf="author.totalCitations">
+                  Cited: {{ author.totalCitations | number }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="empty-list" *ngIf="!filteredAuthors?.length">No authors match the filter</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section collaboration-section" *ngIf="analyticsData?.collaborationNetwork?.nodes?.length">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+      Institutional Research Synergy (Heatmap)
+    </h2>
+    <p class="section-subtitle">Co-authorship matrix across Sharda University departments</p>
+
+    <div class="collaboration-grid">
+      <div class="collaboration-visual-card">
+        <div class="heatmap-scroll-container">
+          <div #collaborationContainer class="collaboration-container"></div>
+        </div>
+        <div class="visual-footer">
+          <span class="statistical-note">Heatmap Matrix: Color intensity indicates collaboration volume</span>
+        </div>
+      </div>
+
+      <div class="collaboration-stats-card">
+        <h3 class="card-subtitle">Top Collaborating Pairs</h3>
+        <div class="stats-table-wrapper">
+          <table class="collaboration-table">
+            <thead>
+              <tr>
+                <th>Department A</th>
+                <th>Department B</th>
+                <th>Papers</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let link of analyticsData?.collaborationNetwork?.links?.slice(0, 8)">
+                <td>{{ link.source }}</td>
+                <td>{{ link.target }}</td>
+                <td>
+                  <span class="collaboration-badge">{{ link.weight }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section trends-section">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+      Research Topic Evolution
+    </h2>
+    <p class="section-subtitle">Visualizing trending keywords and focus areas over time</p>
+
+    <div class="view-toggle-container">
+      <div class="view-toggle">
+        <button [class.active]="activeTopicView === 'cloud'" (click)="toggleTopicView('cloud')">
+          Word Cloud
+        </button>
+        <button [class.active]="activeTopicView === 'nexus'" (click)="toggleTopicView('nexus')">
+          3D Nexus
+        </button>
+      </div>
+    </div>
+
+    <div class="trends-grid">
+      <div class="trend-card word-cloud-card">
+        <h3 class="card-subtitle">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" class="card-icon" style="color: #8b5cf6;">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          Selected Filter Trend
+        </h3>
+        <div class="chart-container-md impact-chart-wrapper">
+          <canvas #dateTrendCanvas></canvas>
+          <div class="empty-data-hint" *ngIf="!analyticsData?.dateTrendData?.length">
+            <p>No trend data available for selected duration</p>
+          </div>
+        </div>
+        <div class="visual-footer">
+          <span class="statistical-note">Publication growth trend over the selected time period</span>
+        </div>
+      </div>
+
+      <div class="trend-card evolution-card">
+        <h3 class="card-subtitle">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" class="card-icon" style="color: #ec4899;">
+            <path d="M12 20v-6M9 20v-10M15 20v-4M18 20V4M6 20v-2"></path>
+          </svg>
+          {{ activeTopicView === 'cloud' ? 'Top Area Growth (Trend Analysis)' : 'Research Constellation (3D Nexus)' }}
+        </h3>
+        <div class="trend-chart-wrapper">
+          <canvas #topicTrendsChart *ngIf="activeTopicView === 'cloud'"></canvas>
+          <div #nexusContainer class="nexus-container" [class.hidden]="activeTopicView !== 'nexus'"></div>
+          <div class="empty-data-hint" *ngIf="activeTopicView === 'cloud' && !analyticsData?.topicEvolution?.length">
+            <p>No trend data available</p>
+          </div>
+        </div>
+        <div class="visual-footer">
+          <span class="statistical-note">
+            {{ activeTopicView === 'cloud' ? 'Annual keyword frequency across Sharda publications' : '3D visualization
+            of keyword relationships and co-occurrence' }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Department Battle Mode Section -->
+  <div class="section battle-mode-section" *ngIf="analyticsData?.departments?.length">
+    <div class="battle-header">
+      <div class="battle-title-group">
+        <h2 class="section-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" class="title-icon battle-icon">
+            <path d="M14.5 2L12 4.5L14.5 7"></path>
+            <path d="M9.5 22L12 19.5L9.5 17"></path>
+            <path d="M6 12L2 12"></path>
+            <path d="M22 12H18"></path>
+            <path d="M12 2V6"></path>
+            <path d="M12 18V22"></path>
+            <path d="M12 12L9 9"></path>
+            <path d="M12 12L15 15"></path>
+          </svg>
+          Department Battle Mode
+        </h2>
+        <p class="section-subtitle">Compare performance metrics between academic departments</p>
+      </div>
+
+      <div class="battle-selectors">
+        <div class="battle-select-wrap">
+          <select [(ngModel)]="battleDept1" (change)="onBattleChange()" class="battle-select dept1">
+            <optgroup label="Select Department">
+              <option
+                *ngFor="let dept of (allDepartmentsStats.length > 0 ? allDepartmentsStats : analyticsData?.departments)"
+                [value]="dept.department">
+                {{ dept.department }}
+              </option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="battle-vs">VS</div>
+        <div class="battle-select-wrap">
+          <select [(ngModel)]="battleDept2" (change)="onBattleChange()" class="battle-select dept2">
+            <optgroup label="Select Department">
+              <option
+                *ngFor="let dept of (allDepartmentsStats.length > 0 ? allDepartmentsStats : analyticsData?.departments)"
+                [value]="dept.department">
+                {{ dept.department }}
+              </option>
+            </optgroup>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="battle-grid">
+      <div class="battle-card radar-card">
+        <div class="battle-chart-container">
+          <canvas #battleChartCanvas></canvas>
+        </div>
+      </div>
+
+      <div class="battle-metrics" *ngIf="battleMetricsData.length">
+        <div class="battle-metric-row" *ngFor="let metric of battleMetricsData">
+          <div class="metric-label">{{ metric.label }}</div>
+          <div class="metric-comparison">
+            <div class="metric-value v1">{{ metric.value1 }}</div>
+            <div class="metric-bar-container">
+              <div class="metric-bar-fill v1" [style.width.%]="metric.percent1"></div>
+              <div class="metric-bar-fill v2" [style.width.%]="metric.percent2"></div>
+            </div>
+            <div class="metric-value v2">{{ metric.value2 }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section geo-collaboration-section">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M2 12h20"></path>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+      International Collaborations
+    </h2>
+    <p class="section-subtitle">Global reach of Sharda University research</p>
+
+    <div class="geo-map-wrapper">
+      <div #geoMapContainer class="geo-map-container"></div>
+      <div class="geo-stats" *ngIf="analyticsData?.geoCollaboration?.length">
+        <div class="geo-stat-item" *ngFor="let colab of analyticsData?.geoCollaboration?.slice(0, 12)">
+          <span class="country-name">{{ colab.country }}</span>
+          <span class="colab-count">{{ colab.count }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Research Trend Section (Line Chart) -->
+  <div class="section line-chart-section">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+      </svg>
+      Research Growth Trend
+    </h2>
+    <p class="section-subtitle">Year-wise publication growth</p>
+
+    <div class="chart-container large-chart">
+      <canvas #lineChartCanvas></canvas>
+    </div>
+  </div>
+
+  <div class="grid-3-cols">
+    <!-- Paper Type Distribution -->
+    <div class="section chart-card">
+      <h2 class="section-title">Publication Types</h2>
+      <div class="chart-container-md">
+        <canvas #paperTypeChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Journal Quartiles -->
+    <div class="section chart-card" style="grid-column: span 2;">
+      <h2 class="section-title">Journal Quality (Quartiles)</h2>
+      <div class="chart-container-md">
+        <canvas #quartileChartCanvas></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Department Quartile Comparison -->
+  <div class="section dept-quartile-section" *ngIf="!selectedDept">
+    <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+      <h2 class="section-title" style="margin-bottom: 0;">Department Quartile Analysis</h2>
+      <button (click)="downloadQuartileCSV()" class="btn-download-premium" title="Download Quartile Details (CSV)">
+        <span class="material-icons">file_download</span>
+        <span>Download CSV</span>
+      </button>
+    </div>
+
+    <p class="section-subtitle">Comparing Q1-Q4 (counts shown in legend) publication quality across top departments
+    </p>
+    <div class="chart-container large-chart" style="height: 500px;">
+      <canvas #deptQuartileChartCanvas></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2-cols" style="align-items: stretch; gap: 1.5rem;">
+    <!-- Top Sources -->
+    <div class="section source-analytics-section" style="margin: 0;">
+      <h2 class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" class="title-icon">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        Top Journals & Conferences
+      </h2>
+      <div class="chart-container large-chart" style="height: 480px;">
+        <canvas #sourceChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Department Citations Analytics -->
+    <div class="section dept-citations-section" style="margin: 0;">
+      <h2 class="section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" class="title-icon">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+        </svg>
+        {{ selectedDept ? 'Selected Filter Citation Trend' : 'Department-wise Citations' }}
+      </h2>
+      <p class="section-subtitle" style="margin-bottom: 0.5rem;">{{ selectedDept ? 'Citation performance for ' +
+        selectedDept + ' over the selected time period' : 'Total research impact and citation performance across top
+        30 departments' }}</p>
+
+      <!-- Chart Visualization -->
+      <div class="chart-container large-chart" style="height: 450px;">
+        <div class="chart-canvas-wrapper" style="height: 100%;">
+          <canvas #deptCitationsChartCanvas></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pie Chart Section -->
+  <div class="section pie-chart-section" *ngIf="!selectedDept">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+        <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+      </svg>
+      Department Distribution
+    </h2>
+    <p class="section-subtitle">Top 10 departments by paper count</p>
+
+    <div class="pie-chart-container">
+      <div class="chart-canvas-wrapper">
+        <canvas #pieChartCanvas></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Department Analytics -->
+  <div class="section dept-distribution-section" *ngIf="!selectedDept">
+    <h2 class="section-title">Department-wise Author Distribution</h2>
+    <p class="section-subtitle">Unique author counts across departments</p>
+
+    <!-- Bar Chart Visualization -->
+    <div class="chart-container large-chart">
+      <div class="chart-canvas-wrapper">
+        <canvas #barChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Summary Stats Table -->
+    <div class="stats-table-section">
+      <h3 class="subsection-title">Department Statistics Summary</h3>
+      <div class="stats-table-container">
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Department</th>
+              <th>Unique Authors</th>
+              <th>Papers</th>
+              <th>Total Citations</th>
+              <th>% of Total Papers</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let dept of analyticsData?.departments?.slice(0, 30); let i = index; trackBy: trackByDeptName">
+              <td class="dept-name-cell">
+                <div class="dept-indicator" [class]="dept.colorClass"></div>
+                {{ dept.department || 'NA' }}
+              </td>
+              <td class="number-cell clickable-count" (click)="showAuthors(dept); $event.stopPropagation()">{{
+                dept.uniqueAuthors }}</td>
+              <td class="number-cell">{{ dept.paperCount }}</td>
+              <td class="number-cell highlight-cites" style="font-weight: 600; color: var(--accent-orange, #f59e0b);">
+                {{ dept.totalCitations || 0 | number }}</td>
+              <td class="percent-cell">
+                <div class="mini-bar">
+                  <div class="mini-bar-fill" [style.width.%]="dept.percentage" [class]="dept.colorClass"></div>
+                </div>
+                <span>{{ dept.percentage }}%</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- All Departments List Section -->
+  <div class="section all-departments-section">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+      Complete Department List
+    </h2>
+    <p class="section-subtitle">All {{ analyticsData?.departments?.length || 0 }} departments with Sharda University
+      authors
+    </p>
+
+    <div class="departments-grid">
+      <div *ngFor="let dept of analyticsData?.departments; let i = index; trackBy: trackByDeptName"
+        class="department-card clickable" [ngClass]="dept.colorClass" (click)="showAuthors(dept)">
+        <div class="dept-card-header">
+          <div class="dept-number">{{ i + 1 }}</div>
+          <div class="dept-badge" [ngClass]="dept.colorClass">
+            {{ dept.paperCount }} {{ dept.paperCount === 1 ? 'paper' : 'papers' }}
+          </div>
+        </div>
+        <div class="dept-card-body">
+          <h3 class="dept-card-title" [title]="dept.department">{{ dept.department || 'NA' }}</h3>
+          <div class="dept-card-stats">
+            <div class="dept-stat clickable-count" (click)="showAuthors(dept); $event.stopPropagation()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span>{{ dept.uniqueAuthors }} {{ dept.uniqueAuthors === 1 ? 'author' : 'authors' }}</span>
+            </div>
+            <div class="dept-stat">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              <span>{{ dept.percentage }}% of total</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- ── FULL-PAGE DRIBBBLE PERSONAL DASHBOARD ── -->
+<!-- ========================================== -->
+<div *ngIf="personalData && !isLoading && isPersonalDash" class="dribbble-full-layout">
+
+  <!-- Left Sidebar -->
+  <aside class="d-sidebar">
+    <div class="d-sidebar-header">
+      <div class="d-logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+          <path d="M2 17l10 5 10-5"></path>
+          <path d="M2 12l10 5 10-5"></path>
+        </svg>
+        <span>Donezo</span>
+      </div>
+    </div>
+
+    <div class="d-sidebar-menu">
+      <div class="d-menu-section">
+        <div class="d-menu-title">MENU</div>
+        <a href="javascript:void(0)" class="d-menu-item active">
+          <span class="material-icons">dashboard</span> Dashboard
+        </a>
+        <a routerLink="/blog" class="d-menu-item" *ngIf="currentUser?.designation === 'Other'">
+          <span class="material-icons">article</span> Blog
+        </a>
+      </div>
+
+      <div class="d-menu-section">
+        <div class="d-menu-title">GENERAL</div>
+        <a routerLink="/profile" class="d-menu-item">
+          <span class="material-icons">settings</span> Settings
+        </a>
+        <a href="javascript:void(0)" class="d-menu-item">
+          <span class="material-icons">help_outline</span> Help
+        </a>
+        <a href="javascript:void(0)" class="d-menu-item" (click)="logout()">
+          <span class="material-icons">logout</span> Logout
+        </a>
+      </div>
+    </div>
+
+    <div class="d-sidebar-promo">
+      <div class="promo-card">
+        <div class="promo-icon"><span class="material-icons">qr_code_2</span></div>
+        <h4>Download our Mobile App</h4>
+        <p>Get data anywhere</p>
+        <button class="promo-btn">Download</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="d-main">
+
+    <!-- Top Navigation -->
+    <header class="d-topbar">
+      <div class="d-search-box">
+        <span class="material-icons">search</span>
+        <input type="text" placeholder="Search task">
+        <span class="d-shortcut">⌘F</span>
+      </div>
+
+      <div class="d-topbar-right">
+        <button class="d-icon-btn"><span class="material-icons">mail_outline</span></button>
+        <button class="d-icon-btn"><span class="material-icons">notifications_none</span></button>
+
+        <div class="d-user-profile">
+          <div class="d-user-avatar">
+            {{ currentUser?.name?.charAt(0) || 'P' }}
+          </div>
+          <div class="d-user-info">
+            <span class="d-user-name">{{ currentUser?.name || 'Professor' }}</span>
+            <span class="d-user-email">{{ currentUser?.email || 'professor@sharda.ac.in' }}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content container -->
+    <div class="dribbble-dashboard">
+      <!-- 1) Header -->
+      <div class="d-header-area">
+        <div class="d-header-text">
+          <h1>Dashboard</h1>
+          <p>Plan, prioritize, and accomplish your tasks with ease.</p>
+        </div>
+        <div class="d-header-actions">
+          <!-- Data Source Toggle Pill -->
+          <div class="source-toggle" (click)="toggleDataSource()" [class.scholar-mode]="dataSource === 'scholar'">
+            <div class="toggle-option" [class.active]="dataSource === 'scopus'">
+              <span class="material-icons" style="font-size:14px">storage</span> Scopus
+            </div>
+            <div class="toggle-option" [class.active]="dataSource === 'scholar'">
+              <span class="material-icons" style="font-size:14px">school</span> Google Scholar
+            </div>
+          </div>
+          <button class="d-btn-primary" routerLink="/upload"><span class="material-icons">add</span> Add
+            Project</button>
+          <button class="d-btn-secondary">Import Data</button>
+        </div>
+      </div>
+
+      <!-- 2) KPI Grid -->
+      <div class="d-kpi-grid">
+        <div class="d-card d-kpi-card dark-green-kpi">
+          <div class="d-kpi-top">
+            <span class="d-kpi-label">Total Publications</span>
+            <div class="d-kpi-icon-wrap"><span class="material-icons">arrow_outward</span></div>
+          </div>
+          <div class="d-kpi-value">{{ activeKpiPapers }}</div>
+          <div class="d-kpi-trend">
+            <span class="source-badge" [class.scholar-badge]="dataSource==='scholar'">{{ dataSource === 'scholar' ? '🎓
+              Scholar' : '📊 Scopus' }}</span>
+          </div>
+        </div>
+
+        <div class="d-card d-kpi-card">
+          <div class="d-kpi-top">
+            <span class="d-kpi-label">Total Citations</span>
+            <div class="d-kpi-icon-wrap"><span class="material-icons">arrow_outward</span></div>
+          </div>
+          <div class="d-kpi-value">{{ activeKpiCitations }}</div>
+          <div class="d-kpi-trend">
+            <span class="source-badge" [class.scholar-badge]="dataSource==='scholar'">{{ dataSource === 'scholar' ? '🎓
+              Scholar' : '📊 Scopus' }}</span>
+          </div>
+        </div>
+
+        <div class="d-card d-kpi-card">
+          <div class="d-kpi-top">
+            <span class="d-kpi-label">h-index</span>
+            <div class="d-kpi-icon-wrap"><span class="material-icons">arrow_outward</span></div>
+          </div>
+          <div class="d-kpi-value">{{ activeKpiHIndex }}</div>
+          <div class="d-kpi-trend">
+            <span class="source-badge" [class.scholar-badge]="dataSource==='scholar'">{{ dataSource === 'scholar' ? '🎓
+              Scholar' : '📊 Scopus' }}</span>
+          </div>
+        </div>
+
+        <div class="d-card d-kpi-card">
+          <div class="d-kpi-top">
+            <span class="d-kpi-label">Q1 ({{ personalData?.quartiles?.Q1 ?? 0 }})</span>
+            <div class="d-kpi-icon-wrap"><span class="material-icons">arrow_outward</span></div>
+          </div>
+          <div class="d-kpi-value">{{ personalData?.quartiles?.Q1 ?? 0 }}</div>
+          <div class="d-kpi-trend gray-trend">Scopus Only</div>
+        </div>
+      </div>
+
+      <!-- 3) Middle Grid (Charts + Reminders) -->
+      <div class="d-middle-grid">
+        <div class="d-card chart-card">
+          <div class="d-card-header">
+            <h3>Publication Trend</h3>
+          </div>
+          <div class="d-chart-container" style="height: 180px;">
+            <canvas #personalYearChartCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Unified Papers Card (Highlight + List) -->
+        <div class="d-card papers-unified-card" style="grid-column: span 2;">
+          <div class="d-card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <h3>{{ dataSource === 'scholar' ? 'Google Scholar Papers' : 'Scopus Papers' }}</h3>
+            <span class="source-badge" [class.scholar-badge]="dataSource==='scholar'"
+              style="font-size:11px;padding:3px 8px;border-radius:20px;">
+              {{ activePapers.length }} papers
+            </span>
+          </div>
+
+          <!-- Loading spinner for Scholar articles -->
+          <div *ngIf="dataSource === 'scholar' && isLoadingScholarArticles"
+            style="padding:20px;text-align:center;color:#64748b;">
+            <span class="material-icons" style="animation:spin 1s linear infinite;font-size:28px;">sync</span>
+            <p style="margin-top:8px;font-size:13px;">Fetching all Scholar papers…</p>
+          </div>
+
+          <ng-container *ngIf="!(dataSource === 'scholar' && isLoadingScholarArticles)">
+            <!-- Highlighted first paper -->
+            <div class="paper-highlight-row" *ngIf="activePapers.length > 0">
+              <div class="highlight-dot"></div>
+              <div class="highlight-body">
+                <a [href]="activePapers[0].link || activePapers[0].doi" target="_blank" class="highlight-title"
+                  *ngIf="activePapers[0].link || activePapers[0].doi">{{ activePapers[0].title ||
+                  activePapers[0].paperTitle }}</a>
+                <span class="highlight-title" *ngIf="!activePapers[0].link && !activePapers[0].doi">{{
+                  activePapers[0].title || activePapers[0].paperTitle }}</span>
+                <div class="highlight-meta">
+                  <span *ngIf="activePapers[0].year" class="meta-chip">{{ activePapers[0].year }}</span>
+                  <span *ngIf="activePapers[0].sourcePaper" class="meta-chip">{{ activePapers[0].sourcePaper }}</span>
+                  <span *ngIf="(activePapers[0].citedBy ?? 0) > 0" class="cite-chip">⭐ {{ activePapers[0].citedBy }}
+                    citations</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rest of papers list -->
+            <div class="d-project-list papers-scroll-list">
+              <div class="d-project-item" *ngFor="let paper of activePapers.slice(1)">
+                <div class="d-proj-icon"><span class="material-icons">description</span></div>
+                <div class="d-proj-info">
+                  <a [href]="paper.link || paper.doi" target="_blank" *ngIf="paper.link || paper.doi"
+                    class="paper-list-link">{{ paper.title || paper.paperTitle }}</a>
+                  <h4 *ngIf="!paper.link && !paper.doi">{{ paper.title || paper.paperTitle }}</h4>
+                  <p>
+                    <span *ngIf="paper.year">{{ paper.year }}</span>
+                    <span *ngIf="paper.sourcePaper"> · {{ paper.sourcePaper }}</span>
+                    <span *ngIf="(paper.citedBy ?? 0) > 0" style="color:#10b981;"> · {{ paper.citedBy }} cited</span>
+                  </p>
+                </div>
+              </div>
+              <div *ngIf="activePapers.length === 0" class="d-empty">No papers found</div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+
+      <!-- 4) Bottom Grid (Team + Progress) -->
+      <div class="d-bottom-grid">
+        <div class="d-card team-card">
+          <div class="d-card-header">
+            <h3>Top Co-Authors</h3>
+          </div>
+          <div class="d-team-list">
+            <div class="d-collab-item"
+              *ngFor="let node of personalData.collaborationNetwork.nodes.slice(0, 4); let i = index">
+              <div class="d-avatar-sm" [style.background]="'hsl(' + (i * 47 + 100) + ',60%,55%)'">
+                {{ node.id.charAt(0) }}
+              </div>
+              <div class="d-collab-info">
+                <h4>{{ node.id | authorName }}</h4>
+                <p>Working on <strong>{{ node.department | slice:0:25 }}</strong></p>
+              </div>
+              <div class="d-status-badge" [ngClass]="{'completed': i === 0, 'in-progress': i > 0}">
+                {{ i === 0 ? 'Frequent' : 'Occasional' }}
+              </div>
+            </div>
+            <div *ngIf="!personalData.collaborationNetwork.nodes?.length" class="d-empty">No collaborators found</div>
+          </div>
+        </div>
+
+        <div class="d-card progress-card">
+          <div class="d-card-header">
+            <h3>Quartile Distribution</h3>
+          </div>
+          <div class="d-progress-wrapper">
+            <div class="circle-container">
+              <canvas #personalQuartileChartCanvas></canvas>
+            </div>
+          </div>
+          <div class="d-progress-legend">
+            <div class="d-leg-item"><span class="d-dot" style="background: #059669;"></span> Q1 ({{
+              personalData?.quartiles?.Q1 ?? 0 }})</div>
+            <div class="d-leg-item"><span class="d-dot" style="background: #10b981;"></span> Q2 ({{
+              personalData?.quartiles?.Q2 ?? 0 }})</div>
+            <div class="d-leg-item"><span class="d-dot" style="background: #e2e8f0;"></span> Q3/Q4 ({{
+              (personalData?.quartiles?.Q3 ?? 0) + (personalData?.quartiles?.Q4 ?? 0) }})</div>
+          </div>
+        </div>
+
+        <div class="d-card time-card d-time-card">
+          <div class="d-time-header">Citations per Paper</div>
+          <div class="d-time-display">
+            {{ personalData.totalPapers > 0 ? (personalData.totalCitations / personalData.totalPapers | number:'1.1-1')
+            : '0.0' }}
+          </div>
+          <div class="d-time-actions">
+            <button class="d-btn-icon" style="background: rgba(255,255,255,0.2); color: white; border: none;"><span
+                class="material-icons">auto_graph</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Author List Modal -->
+<div class="modal-backdrop" *ngIf="selectedDepartment" (click)="closeModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="header-title">
+        <span class="dept-badge-lg"
+          [ngClass]="selectedDepartment.colorClass || 'color-1'">{{selectedDepartment.department | slice:0:1}}</span>
+        <h3>{{selectedDepartment.department}}</h3>
+      </div>
+      <button class="close-btn" (click)="closeModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-stats">
+      <div class="stat-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+          <polyline points="10 9 9 9 8 9"></polyline>
+        </svg>
+        {{selectedDepartment.paperCount}} Papers
+      </div>
+      <div class="stat-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        {{isModalLoading ? '...' : (modalAuthors.length || 0)}} Authors
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <h4 class="list-title">Author List</h4>
+
+      <!-- Loading State -->
+      <div *ngIf="isModalLoading" class="loading-container"
+        style="min-height: 200px; background: transparent; box-shadow: none;">
+        <div class="spinner"></div>
+        <p>Loading authors...</p>
+      </div>
+
+      <!-- Authors List -->
+      <div class="authors-grid">
+        <div class="author-modal-card" *ngFor="let author of modalAuthors; let i = index; trackBy: trackByAuthorName"
+          (click)="openAuthorPopup(author)">
+          <div class="author-header">
+            <div class="author-info">
+              <div class="author-avatar">{{author.name?.charAt(0)}}</div>
+              <div class="author-details">
+                <span class="author-name" [title]="author.name">{{ author.name | authorName }}</span>
+                <span class="paper-count-badge">{{author.titles?.length || 0}} papers</span>
+              </div>
+            </div>
+            <svg class="chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isModalLoading && (!modalAuthors || modalAuthors.length === 0)" class="empty-state">
+        <p>No authors found for this department.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Author Details Popup (Second Layer) -->
+<div class="author-popup-overlay" *ngIf="selectedDetailAuthor" (click)="closeAuthorPopup()">
+  <div class="author-popup-content" (click)="$event.stopPropagation()">
+    <div class="author-popup-header">
+      <div class="author-header-info">
+        <div class="author-avatar-lg">{{selectedDetailAuthor.name?.charAt(0)}}</div>
+        <div>
+          <h3>{{ selectedDetailAuthor.name | authorName }}</h3>
+          <span class="dept-badge">{{selectedDepartment?.department}}</span>
+        </div>
+      </div>
+      <button class="close-btn" (click)="closeAuthorPopup()">×</button>
+    </div>
+
+    <div class="author-popup-body">
+      <div class="popup-stats">
+        <div class="stat-box">
+          <span class="stat-number">{{selectedDetailAuthor.titles?.length || 0}}</span>
+          <span class="stat-label">Total Papers</span>
+        </div>
+      </div>
+
+      <div class="papers-list-section">
+        <h4>Published Papers</h4>
+        <div class="papers-scroll-list">
+          <div class="paper-item" *ngFor="let title of selectedDetailAuthor.titles; let i = index">
+            <span class="paper-number">{{i + 1}}</span>
+            <p>{{title}}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Papers List Modal -->
+<div class="modal-backdrop papers-modal-backdrop" *ngIf="showPapersModal" (click)="closePapersModal()">
+  <div class="modal-content papers-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="header-title">
+        <span class="dept-badge-lg" style="background: linear-gradient(135deg, #3b82f6, #6366f1);">📄</span>
+        <div>
+          <h3>Published Papers</h3>
+          <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">
+            {{ selectedDept ? selectedDept + ' · ' : '' }}{{ getDateDisplayLabel() }}
+          </p>
+        </div>
+      </div>
+      <button class="close-btn" (click)="closePapersModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-stats">
+      <div class="stat-pill">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        {{ analyticsData?.totalPapers }} Total Papers
+      </div>
+      <div class="stat-pill">
+        Showing {{ filteredPapersModal.length }} of {{ analyticsData?.recentPapers?.length || 0 }}
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="papers-modal-search">
+      <span class="material-icons" style="color: #64748b; font-size: 20px;">search</span>
+      <input type="text" placeholder="Search by title, author, or type…" [(ngModel)]="papersModalSearch">
+      <button *ngIf="papersModalSearch" class="clear-search-btn" (click)="papersModalSearch = ''">
+        <span class="material-icons" style="font-size: 16px;">close</span>
+      </button>
+    </div>
+
+    <!-- View Toggle -->
+    <div class="pm-view-toggle">
+      <button [class.active]="papersModalView === 'types'" (click)="switchPapersView('types')">
+        <span class="material-icons" style="font-size: 16px;">category</span> By Type
+      </button>
+      <button [class.active]="papersModalView === 'quartiles'" (click)="switchPapersView('quartiles')">
+        <span class="material-icons" style="font-size: 16px;">stars</span> By Quartile
+      </button>
+    </div>
+
+    <!-- ═══ TYPES VIEW ═══ -->
+    <div class="pm-type-grid" *ngIf="papersModalView === 'types'">
+      <div class="pm-type-card" *ngFor="let pt of analyticsData?.paperTypeData; let i = index"
+        [class.active]="activePaperType === pt.type" [style.--card-hue]="(i * 47 + 210)"
+        (click)="togglePaperType(pt.type)">
+        <div class="pm-type-card-top">
+          <span class="pm-type-card-icon" [style.background]="'hsl(' + (i * 47 + 210) + ', 60%, 50%)'">
+            {{ pt.type === 'Article' ? '📄' : pt.type === 'Review' ? '📝' : pt.type === 'Conference paper' ? '🎤' :
+            pt.type === 'Book Chapter' ? '📖' : pt.type === 'Letter' ? '✉️' : '📋' }}
+          </span>
+          <span class="pm-type-card-count">{{ pt.count }}</span>
+        </div>
+        <div class="pm-type-card-name">{{ pt.type }}</div>
+        <div class="pm-type-card-bar">
+          <div class="pm-type-card-bar-fill"
+            [style.width]="(pt.count / (analyticsData?.paperTypeData?.[0]?.count || 1) * 100) + '%'"
+            [style.background]="'hsl(' + (i * 47 + 210) + ', 60%, 50%)'"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ QUARTILES VIEW ═══ -->
+    <div class="pm-quartile-grid" *ngIf="papersModalView === 'quartiles'">
+      <div class="pm-q-card" *ngFor="let q of analyticsData?.quartileDistribution"
+        [class.active]="activeQuartile === q.quartile" [attr.data-q]="q.quartile" (click)="toggleQuartile(q.quartile)">
+        <div class="pm-q-badge" [attr.data-q]="q.quartile">{{ q.quartile }}</div>
+        <div class="pm-q-count">{{ q.count }}</div>
+        <div class="pm-q-label">papers</div>
+        <div class="pm-q-bar">
+          <div class="pm-q-bar-fill" [attr.data-q]="q.quartile"
+            [style.width]="(q.count / (analyticsData?.totalPapers || 1) * 100) + '%'"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <!-- Hint when nothing selected -->
+      <div class="pm-select-hint"
+        *ngIf="(papersModalView === 'types' ? !activePaperType : !activeQuartile) && !papersModalSearch">
+        <span class="material-icons" style="font-size: 40px; color: #cbd5e1;">touch_app</span>
+        <p>Click a {{ papersModalView === 'types' ? 'paper type' : 'quartile' }} above to view papers</p>
+      </div>
+
+      <!-- Papers list (shared for both views) -->
+      <div class="papers-list-scroll"
+        *ngIf="(papersModalView === 'types' ? activePaperType : activeQuartile) || papersModalSearch">
+        <div class="pm-active-header" *ngIf="papersModalView === 'types' && activePaperType">
+          <span>{{ activePaperType }}</span>
+          <span class="pm-active-count">{{ activePapersList.length }} papers</span>
+        </div>
+        <div class="pm-active-header" *ngIf="papersModalView === 'quartiles' && activeQuartile">
+          <span>{{ activeQuartile }} Papers</span>
+          <span class="pm-active-count">{{ activeQuartilePapers.length }} papers</span>
+        </div>
+        <div class="pm-paper-card"
+          *ngFor="let paper of (papersModalSearch ? filteredPapersModal : (papersModalView === 'types' ? activePapersList : activeQuartilePapers)); let i = index; trackBy: trackByPaperTitle">
+          <div class="pm-accent" [style.background]="'hsl(210, 60%, 50%)'"></div>
+          <div class="pm-rank">{{ i + 1 }}</div>
+          <div class="pm-body">
+            <a *ngIf="paper.link" [href]="paper.link" target="_blank" class="pm-title">
+              {{ paper.title }}
+              <span class="pm-link-icon">↗</span>
+            </a>
+            <span *ngIf="!paper.link" class="pm-title no-link">{{ paper.title }}</span>
+            <div class="pm-tags">
+              <span class="pm-tag pm-tag-year">{{ paper.year }}</span>
+              <span class="pm-tag pm-tag-type" *ngIf="papersModalSearch || papersModalView === 'quartiles'">{{
+                paper.type || 'Unknown' }}</span>
+              <span class="pm-tag pm-tag-quartile" *ngIf="papersModalView === 'types'" [attr.data-q]="paper.quartile">{{
+                paper.quartile || 'NA' }}</span>
+              <span class="pm-tag pm-tag-authors" *ngIf="paper.authorCount">
+                <span class="material-icons" style="font-size: 13px;">person</span>
+                {{ paper.authorCount }} author{{ paper.authorCount > 1 ? 's' : '' }}
+              </span>
+            </div>
+            <div class="pm-authors" *ngIf="paper.authorNames?.length">
+              {{ paper.authorNames.slice(0, 4).join(' · ') }}{{ paper.authorNames.length > 4 ? ' · +' +
+              (paper.authorNames.length - 4) + ' more' : '' }}
+            </div>
+          </div>
+          <div class="pm-cite" *ngIf="paper.citedBy > 0" [class.high-cite]="paper.citedBy >= 10">
+            <span class="pm-cite-num">{{ paper.citedBy }}</span>
+            <span class="pm-cite-label">cited</span>
+          </div>
+        </div>
+        <div class="empty-list"
+          *ngIf="(papersModalSearch ? filteredPapersModal : (papersModalView === 'types' ? activePapersList : activeQuartilePapers)).length === 0"
+          style="text-align: center; padding: 3rem;">
+          No papers found
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer with View All button -->
+    <div class="pm-footer">
+      <button class="pm-view-all-btn" (click)="navigateToFullPaperList()">
+        <span>View All {{ analyticsData?.totalPapers }} Papers</span>
+        <span class="material-icons" style="font-size: 18px;">arrow_forward</span>
+      </button>
+    </div>
+  </div>
+</div>

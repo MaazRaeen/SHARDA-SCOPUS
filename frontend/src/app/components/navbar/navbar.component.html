@@ -1,0 +1,62 @@
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="nav-start">
+            <button class="nav-back-button" *ngIf="showBackButton" (click)="goBack()">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+            </button>
+
+            <a routerLink="/" class="nav-logo" (click)="closeMenu()">
+                <span class="logo-icon">📚</span>
+                <span class="logo-text">Sharda Research</span>
+            </a>
+        </div>
+
+        <button class="hamburger-btn" (click)="toggleMenu()" [class.active]="isMenuOpen" aria-label="Toggle navigation">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </button>
+
+        <div class="nav-menu" [class.open]="isMenuOpen">
+            <a routerLink="/" class="nav-link" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}"
+                (click)="closeMenu()">Home</a>
+            <a routerLink="/dashboard" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="user">Dashboard</a>
+            <a routerLink="/papers" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="user && (user.role !== 'Professor' || user.designation !== 'Other')">Papers
+                Repository</a>
+            <a routerLink="/authors" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="user">Authors List</a>
+            <a routerLink="/department-counter" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="user">Dept Counter</a>
+            <a routerLink="/teacher-statistics" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="!user || (user.role !== 'Professor' || user.designation !== 'Other')">Teacher
+                Stats</a>
+            <a routerLink="/upload" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="user && (user.role === 'Administrator' || (user.role === 'Professor' && user.designation !== 'Other'))">Upload
+                Data</a>
+
+            <div class="nav-user-section" *ngIf="user">
+                <a routerLink="/profile" class="nav-profile-btn" routerLinkActive="active" (click)="closeMenu()">
+                    <div class="nav-avatar">
+                        <img *ngIf="profileImage" [src]="profileImage" class="nav-avatar-img" alt="PFP">
+                        <span *ngIf="!profileImage" class="nav-avatar-initials">
+                            {{ user.name?.charAt(0)?.toUpperCase() }}
+                        </span>
+                    </div>
+                    <span class="nav-user-name">{{ user.name }}</span>
+                </a>
+                <button class="nav-logout-btn" (click)="logout()">
+                    <span class="material-icons">logout</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Backdrop for mobile -->
+        <div class="backdrop" *ngIf="isMenuOpen" (click)="closeMenu()"></div>
+    </div>
+</nav>

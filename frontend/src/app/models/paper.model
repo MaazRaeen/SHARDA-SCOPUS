@@ -1,0 +1,52 @@
+/**
+ * Paper Model (Legacy - for reference)
+ */
+export interface Paper {
+  _id: string;
+  title: string;
+  year: number;
+  authors: string[];
+  affiliations: string[];
+  source: string;
+  doi: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * Sharda Author Model
+ * Represents a Sharda University author with their department
+ */
+export interface ShardaAuthor {
+  _id: string;
+  authorName: string;
+  department: string;
+  sourcePaper?: string;
+  year?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/**
+ * Upload Response Interface
+ */
+export interface UploadResponse {
+  success: boolean;
+  message: string;
+  count: number;
+  papersWithSharda?: number;
+  errors?: Array<{ row: any; error: string }>;
+}
+
+/**
+ * API Response Interface
+ */
+export interface ApiResponse<T = any> {
+  success: boolean;
+  count?: number;
+  message?: string;
+  data?: T;
+  departments?: string[];
+  error?: string;
+  papersWithSharda?: number;
+}

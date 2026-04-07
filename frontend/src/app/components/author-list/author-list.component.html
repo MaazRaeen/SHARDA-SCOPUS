@@ -1,0 +1,108 @@
+<div class="author-list-container">
+    <header class="page-header">
+        <div class="header-content">
+            <h1>Sharda Authors Directory</h1>
+            <p>Complete list of researchers affiliated with Sharda University and their Scopus IDs.</p>
+        </div>
+    </header>
+
+    <div class="filters-card">
+        <div class="search-box">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" [(ngModel)]="searchQuery" (input)="onFilterChange()" placeholder="Search by name or Scopus ID..." class="search-input">
+            <button class="clear-btn" *ngIf="searchQuery" (click)="clearSearch()">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+
+        <button (click)="downloadCSV()" class="download-btn" title="Download as CSV">
+            <span class="material-icons">download</span>
+            Download
+        </button>
+
+        <div class="department-filter">
+            <label for="deptSelect">Filter by Department:</label>
+            <select id="deptSelect" [(ngModel)]="selectedDepartment" (change)="onFilterChange()" class="filter-select">
+                <option value="All">All Departments</option>
+                <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+            </select>
+        </div>
+
+        <div class="api-link-container">
+            <a routerLink="/authors-api" class="api-view-btn">
+                <span class="material-icons">api</span>
+                <span>View Live API Data</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="results-info" *ngIf="!isLoading">
+        <span class="count-badge">{{ filteredAuthors.length }} authors found</span>
+    </div>
+
+    <div class="table-card scrollbar-custom">
+        <table class="authors-table">
+            <thead>
+                <tr>
+                    <th>Author Name</th>
+                    <th>Department</th>
+                    <th>Scopus ID</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let author of filteredAuthors">
+                    <td>
+                        <div class="author-name-cell">
+                            <span class="avatar">{{ author.authorName[0] }}</span>
+                            <span class="name-text">{{ author.authorName | authorName }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="dept-badge">{{ author.department }}</span>
+                    </td>
+                    <td>
+                        <code class="scopus-id" *ngIf="author.scopusId">{{ author.scopusId }}</code>
+                        <span class="na-text" *ngIf="!author.scopusId">Not available</span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a *ngIf="author.scopusId" [href]="getScopusUrl(author.scopusId)" target="_blank"
+                                class="scopus-link-btn" title="View Scopus Profile">
+                                <span class="material-icons">open_in_new</span>
+                                <span>Scopus</span>
+                            </a>
+                            <a [routerLink]="['/teacher-statistics']" [queryParams]="{ _id: author.authorName }"
+                                class="stats-link-btn" title="View Research Stats">
+                                <span class="material-icons">bar_chart</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr *ngIf="filteredAuthors.length === 0 && !isLoading">
+                    <td colspan="4" class="no-results">
+                        <div class="no-results-content">
+                            <span class="material-icons large-icon">person_off</span>
+                            <p>No authors found matching your search criteria.</p>
+                            <button (click)="clearSearch()" class="reset-btn">Clear All Filters</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Loading State -->
+        <div class="loading-overlay" *ngIf="isLoading">
+            <div class="loader"></div>
+            <p>Fetching authors from database...</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-state" *ngIf="error && !isLoading">
+            <span class="material-icons error-icon">error_outline</span>
+            <p>{{ error }}</p>
+            <button (click)="loadData()" class="retry-btn">Retry</button>
+        </div>
+    </div>
+</div>

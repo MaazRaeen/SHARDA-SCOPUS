@@ -1,0 +1,317 @@
+<app-navbar [showBackButton]="true"></app-navbar>
+
+<div class="scopus-fetch-container">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>🔍 Scopus API Fetch</h1>
+      <p class="subtitle">Automatically fetch research papers from Scopus</p>
+    </div>
+  </header>
+
+  <!-- API Configuration Section -->
+  <div class="config-section">
+    <div class="config-header">
+      <h2>⚙️ API Configuration</h2>
+      <label class="toggle-switch">
+        <input type="checkbox" [(ngModel)]="useCustomApiKey">
+        <span class="slider"></span>
+        <span class="toggle-label">Use Custom API Key</span>
+      </label>
+    </div>
+
+    <div class="config-form" *ngIf="useCustomApiKey">
+      <div class="form-group">
+        <label for="apiKey">Scopus API Key</label>
+        <input type="password" id="apiKey" [(ngModel)]="apiKey" placeholder="Enter your Scopus API key"
+          class="form-input">
+        <small class="help-text">
+          Get your API key from <a href="https://dev.elsevier.com/" target="_blank">Elsevier Developer Portal</a>
+        </small>
+      </div>
+      <button class="clear-key-btn" (click)="clearApiKey()" *ngIf="apiKey">
+        Clear Saved Key
+      </button>
+    </div>
+
+    <div class="default-key-note" *ngIf="!useCustomApiKey">
+      <span class="note-icon">ℹ️</span>
+      <span>Using default API key from environment configuration</span>
+    </div>
+  </div>
+
+  <!-- Search Parameters Section -->
+  <div class="search-section">
+    <h2>🔎 Search Parameters</h2>
+
+    <div class="search-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="affiliation">Affiliation</label>
+          <input type="text" id="affiliation" [(ngModel)]="affiliation" placeholder="e.g., Sharda University"
+            class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="searchQuery">Search Query (Optional)</label>
+          <input type="text" id="searchQuery" [(ngModel)]="searchQuery" placeholder="e.g., machine learning, AI"
+            class="form-input">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="dateFrom">Date From (Optional)</label>
+          <input type="date" id="dateFrom" [(ngModel)]="dateFrom" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="dateTo">Date To (Optional)</label>
+          <input type="date" id="dateTo" [(ngModel)]="dateTo" class="form-input">
+        </div>
+
+        <div class="form-group">
+          <label for="paperType">Paper Type</label>
+          <select id="paperType" [(ngModel)]="paperType" class="form-select">
+            <option *ngFor="let type of paperTypes" [value]="type">{{ type }}</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="maxResults">Max Results</label>
+          <input type="number" id="maxResults" [(ngModel)]="maxResults" min="1" max="500" class="form-input">
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="search-btn" (click)="searchScopus()" [disabled]="isSearching">
+          <span *ngIf="!isSearching">🔍 Search Scopus</span>
+          <span *ngIf="isSearching" class="loading-text">
+            <span class="spinner-small"></span>
+            Searching...
+          </span>
+        </button>
+
+        <button class="reset-btn" (click)="resetForm()" [disabled]="isSearching">
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="error-alert">
+    <span class="error-icon">⚠️</span>
+    <span>{{ errorMessage }}</span>
+    <button class="close-error" (click)="errorMessage = ''">×</button>
+  </div>
+
+  <!-- Success Message -->
+  <div *ngIf="successMessage" class="success-alert">
+    <span class="success-icon">✓</span>
+    <span>{{ successMessage }}</span>
+    <button class="close-success" (click)="successMessage = ''">×</button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isSearching" class="loading-state">
+    <div class="spinner"></div>
+    <p>Fetching papers from Scopus...</p>
+    <small>This may take a few moments depending on the number of results</small>
+  </div>
+
+  <!-- Results Section -->
+  <div *ngIf="!isSearching && papers.length > 0" class="results-section">
+    <!-- Results Header -->
+    <div class="results-header">
+      <div class="results-info">
+        <h2>📚 Search Results</h2>
+        <p>Found {{ totalResults }} papers from {{ affiliation }}</p>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat-item">
+          <span class="stat-number">{{ papers.length }}</span>
+          <span class="stat-label">Papers Loaded</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">{{ getTotalAuthors() }}</span>
+          <span class="stat-label">Total Authors</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button class="save-btn" (click)="saveToDatabase()" [disabled]="isLoading">
+          💾 Save to Database
+        </button>
+        <button class="view-btn" (click)="goToPaperList()">
+          📋 View All Papers
+        </button>
+      </div>
+    </div>
+
+    <!-- Pagination Info -->
+    <div class="pagination-info">
+      <div class="pagination-text">
+        <span *ngIf="totalResults > 0">
+          Showing {{ displayedStart }}-{{ displayedEnd }} of {{ totalResults }} papers
+        </span>
+        <span *ngIf="totalResults > displayedEnd" class="remaining-count">
+          ({{ totalResults - displayedEnd }} more available)
+        </span>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="pagination-controls">
+        <!-- Load More Button -->
+        <button class="load-more-btn" (click)="loadMore()" [disabled]="!canLoadMore" *ngIf="hasMoreResults">
+          <span *ngIf="!isLoadingMore">⬇️ Load More ({{ itemsPerPage }} more)</span>
+          <span *ngIf="isLoadingMore" class="loading-text">
+            <span class="spinner-small"></span>
+            Loading...
+          </span>
+        </button>
+
+        <!-- Load All Button -->
+        <button class="load-all-btn" (click)="loadAllPapers()" [disabled]="!canLoadMore"
+          *ngIf="hasMoreResults && !isLoadingMore">
+          ⚡ Load All Remaining ({{ totalResults - displayedEnd }})
+        </button>
+
+        <!-- All Loaded Badge -->
+        <span *ngIf="!hasMoreResults" class="all-loaded-badge">
+          ✅ All {{ totalResults }} papers loaded
+        </span>
+      </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <label for="yearFilter">Year</label>
+        <select id="yearFilter" [(ngModel)]="selectedYear" (change)="applyFilters()" class="filter-select">
+          <option value="">All Years</option>
+          <option *ngFor="let year of staticYears" [value]="year">{{ year }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="typeFilter">Paper Type</label>
+        <select id="typeFilter" [(ngModel)]="selectedPaperType" (change)="applyFilters()" class="filter-select">
+          <option *ngFor="let type of paperTypes" [value]="type">{{ type }}</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label for="deptFilter">Department</label>
+        <select id="deptFilter" [(ngModel)]="selectedDepartment" (change)="applyFilters()" class="filter-select">
+          <option value="">All Departments</option>
+          <option *ngFor="let dept of departments" [value]="dept">{{ dept }}</option>
+        </select>
+      </div>
+
+      <button class="clear-filter-btn" (click)="clearFilters()" *ngIf="hasActiveFilters()">
+        Clear Filters
+      </button>
+    </div>
+
+    <!-- Papers Table -->
+    <div class="table-container">
+      <table class="papers-table">
+        <thead>
+          <tr>
+            <th class="title-col">Paper Title</th>
+            <th class="year-col">Year</th>
+            <th class="type-col">Paper Type</th>
+            <th class="cited-col">Cited By</th>
+            <th class="source-col">Source</th>
+            <th class="author-col">Author 1</th>
+            <th class="author-col">Author 2</th>
+            <th class="author-col">Author 3</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let paper of papers; let i = index" class="paper-row">
+            <td class="title-cell">
+              <div class="paper-title" title="{{ paper.paperTitle }}">
+                <a *ngIf="paper.link" [href]="paper.link" target="_blank" class="paper-link">
+                  {{ paper.paperTitle || 'N/A' }}
+                </a>
+                <span *ngIf="!paper.link">{{ paper.paperTitle || 'N/A' }}</span>
+              </div>
+            </td>
+            <td class="year-cell">
+              <span class="year-badge">{{ paper.year || 'N/A' }}</span>
+            </td>
+            <td class="type-cell">
+              <span class="type-badge">{{ paper.paperType || 'N/A' }}</span>
+            </td>
+            <td class="cited-cell">
+              <span class="cited-badge">{{ paper.citedBy || 0 }}</span>
+            </td>
+            <td class="source-cell">
+              <div class="source-name" title="{{ paper.sourcePaper || paper.publisher }}">
+                {{ paper.sourcePaper || paper.publisher || '-' }}
+              </div>
+            </td>
+            <td class="author-cell">
+              <div class="author-with-dept" *ngIf="paper.author1?.authorName">
+                <div class="author-name">{{ formatAuthorName(paper.author1?.authorName) }}</div>
+                <div class="department-badge" *ngIf="paper.author1?.department">
+                  {{ paper.author1?.department }}
+                </div>
+              </div>
+              <span *ngIf="!paper.author1?.authorName" class="empty-text">-</span>
+            </td>
+            <td class="author-cell">
+              <div class="author-with-dept" *ngIf="paper.author2?.authorName">
+                <div class="author-name">{{ formatAuthorName(paper.author2?.authorName) }}</div>
+                <div class="department-badge" *ngIf="paper.author2?.department">
+                  {{ paper.author2?.department }}
+                </div>
+              </div>
+              <span *ngIf="!paper.author2?.authorName" class="empty-text">-</span>
+            </td>
+            <td class="author-cell">
+              <div class="author-with-dept" *ngIf="paper.author3?.authorName">
+                <div class="author-name">{{ formatAuthorName(paper.author3?.authorName) }}</div>
+                <div class="department-badge" *ngIf="paper.author3?.department">
+                  {{ paper.author3?.department }}
+                </div>
+              </div>
+              <span *ngIf="!paper.author3?.authorName" class="empty-text">-</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isSearching && papers.length === 0 && !errorMessage" class="empty-state">
+    <div class="empty-icon">🔍</div>
+    <h3>Ready to Search</h3>
+    <p>Enter your search parameters and click "Search Scopus" to fetch papers</p>
+    <div class="tips-list">
+      <h4>Tips:</h4>
+      <ul>
+        <li>Keep the affiliation as "Sharda University" to find papers from Sharda</li>
+        <li>Use the optional search query to filter by topic</li>
+        <li>Set date range to narrow down results</li>
+        <li>Increase "Max Results" for more papers (max 500)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Footer Navigation -->
+  <footer class="page-footer">
+    <a routerLink="/upload" class="back-link">
+      ← Back to Upload
+    </a>
+    <a routerLink="/papers" class="back-link">
+      → View Papers
+    </a>
+  </footer>
+</div>

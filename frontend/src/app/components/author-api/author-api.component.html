@@ -1,0 +1,231 @@
+<div class="author-api-container">
+    <div class="api-top-actions">
+        <button (click)="downloadCSV()" class="download-btn" title="Download as CSV">
+            <span class="material-icons">download</span>
+            Download Author List
+        </button>
+    </div>
+    <header class="page-header">
+        <div class="header-content">
+            <div class="title-with-back">
+                <a routerLink="/authors" class="back-link">
+                    <span class="material-icons">arrow_back</span>
+                </a>
+                <h1>Authors by API</h1>
+            </div>
+            <p>Direct live data from Scopus API for Sharda University (ID: 60108680).</p>
+        </div>
+    </header>
+
+    <div class="search-card">
+        <div class="search-box">
+            <span class="material-icons search-icon">search</span>
+            <input 
+                type="text" 
+                [(ngModel)]="searchTerm" 
+                (keyup.enter)="onSearch()"
+                placeholder="Search authors by name or Scopus ID..." 
+                class="search-input">
+            <button *ngIf="searchTerm" (click)="clearSearch()" class="clear-btn">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+        <button (click)="onSearch()" class="search-btn" [disabled]="isLoading">
+            Search
+        </button>
+    </div>
+
+    <div class="status-bar" *ngIf="!isLoading">
+        <div class="info-badges">
+            <span class="count-badge">{{ totalResults | number }} authors total</span>
+            <span class="page-badge">Authors List (Page {{ currentPage }} of {{ totalPages }})</span>
+        </div>
+        
+        <div class="pagination-controls top">
+            <button (click)="prevPage()" [disabled]="startIndex === 0" class="page-btn">
+                <span class="material-icons">chevron_left</span>
+                Previous
+            </button>
+            <button (click)="nextPage()" [disabled]="startIndex + itemsPerPage >= totalResults" class="page-btn">
+                Next
+                <span class="material-icons">chevron_right</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="results-table-card scrollbar-custom">
+        <table class="api-authors-table">
+            <thead>
+                <tr>
+                    <th>Author Name</th>
+                    <th>Matched Department</th>
+                    <th>Current Affiliation</th>
+                    <th>Scopus ID</th>
+                    <th>Pubs (Live)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let author of authors">
+                    <td>
+                        <div class="author-name-cell">
+                            <span class="avatar">{{ formatName(author)[0] }}</span>
+                            <span class="name-text">{{ formatName(author) }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="dept-badge" [class.na-dept]="author.shardaDepartment === 'NA'">
+                            {{ author.shardaDepartment }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="affil-text">{{ getAffiliation(author) }}</span>
+                    </td>
+                    <td>
+                        <code class="scopus-id">{{ getAuthorId(author) }}</code>
+                    </td>
+                    <td>
+                        <button class="count-badge-mini highlight-count clickable" (click)="viewAuthorPapers(author)" 
+                            [title]="'View exact papers from Scopus API for ' + formatName(author)">
+                            {{ author.paperCount }}
+                            <span class="material-icons tiny-icon">visibility</span>
+                        </button>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <a [href]="getScopusUrl(getAuthorId(author))" target="_blank"
+                                class="scopus-link-btn" title="View Scopus Profile">
+                                <span class="material-icons">open_in_new</span>
+                                <span>Scopus</span>
+                            </a>
+                            <a [routerLink]="['/teacher-statistics']" [queryParams]="{ _id: formatName(author) }"
+                                class="stats-link-btn" title="View Research Stats">
+                                <span class="material-icons">bar_chart</span>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr *ngIf="authors.length === 0 && !isLoading">
+                    <td colspan="6" class="no-results">
+                        <div class="no-results-content">
+                            <span class="material-icons large-icon">api</span>
+                            <p>No authors found via Scopus API.</p>
+                            <button (click)="loadData()" class="retry-btn">Refresh API Call</button>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Loading State -->
+        <div class="loading-overlay" *ngIf="isLoading">
+            <div class="loader"></div>
+            <p>Fetching authors from Scopus API... (Batch: {{ startIndex }}-{{ startIndex + itemsPerPage }})</p>
+        </div>
+
+        <!-- Error State -->
+        <div class="error-state" *ngIf="error && !isLoading">
+            <span class="material-icons error-icon">error_outline</span>
+            <p>{{ error }}</p>
+            <button (click)="loadData(startIndex)" class="retry-btn">Retry Current Batch</button>
+        </div>
+    </div>
+
+    <div class="pagination-footer" *ngIf="!isLoading && authors.length > 0">
+        <div class="pagination-controls bottom">
+            <button (click)="prevPage()" [disabled]="startIndex === 0" class="page-btn">
+                <span class="material-icons">chevron_left</span>
+                Previous
+            </button>
+            <span class="range-text">Showing {{ startIndex + 1 }} - {{ (startIndex + authors.length) | number }} of {{ totalResults | number }}</span>
+            <button (click)="nextPage()" [disabled]="startIndex + itemsPerPage >= totalResults" class="page-btn">
+                Next
+                <span class="material-icons">chevron_right</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Paper Details Modal -->
+    <div class="modal-overlay" *ngIf="showPapersModal" (click)="closeModal()">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+            <header class="modal-header">
+                <div class="header-left">
+                    <span class="material-icons header-icon">auto_stories</span>
+                    <h2>Publications by {{ selectedAuthorName }}</h2>
+                </div>
+                <button class="close-btn" (click)="closeModal()">
+                    <span class="material-icons">close</span>
+                </button>
+            </header>
+
+            <div class="modal-body scrollbar-custom">
+                <!-- Modal Loading -->
+                <div class="modal-loading" *ngIf="isModalLoading">
+                    <div class="loader-small"></div>
+                    <p>Fetching publication list from Scopus...</p>
+                </div>
+
+                <!-- Modal Error -->
+                <div class="modal-error" *ngIf="modalError && !isModalLoading">
+                    <span class="material-icons">report_problem</span>
+                    <p>{{ modalError }}</p>
+                    <button class="retry-btn" (click)="viewAuthorPapers({ 'dc:identifier': 'AUTHOR_ID:' + getAuthorId({ 'dc:identifier': 'AUTHOR_ID:' + getAuthorId({}) }) })">Retry</button>
+                </div>
+
+                <!-- Paper List -->
+                <div class="paper-list-container" *ngIf="!isModalLoading && !modalError">
+                    <div class="paper-item" *ngFor="let paper of selectedAuthorPapers; let i = index">
+                        <div class="paper-index">{{ i + 1 }}</div>
+                        <div class="paper-content">
+                            <h3 class="paper-title">{{ paper['dc:title'] }}</h3>
+                            <div class="paper-meta">
+                                <span class="meta-item">
+                                    <span class="material-icons">calendar_today</span>
+                                    {{ paper['prism:coverDate'] | date:'yyyy' }}
+                                </span>
+                                <span class="meta-item">
+                                    <span class="material-icons">book</span>
+                                    {{ paper['prism:publicationName'] }}
+                                </span>
+                                <span class="meta-item cit-badge" *ngIf="paper['citedby-count']">
+                                    <span class="material-icons">grade</span>
+                                    {{ paper['citedby-count'] }} Citations
+                                </span>
+                            </div>
+                            <div class="paper-links" *ngIf="paper['prism:doi'] || paper['link']">
+                                <a *ngIf="paper['prism:doi']" [href]="'https://doi.org/' + paper['prism:doi']" target="_blank" class="doi-link">
+                                    DOI: {{ paper['prism:doi'] }}
+                                </a>
+                                <span class="divider" *ngIf="paper['prism:doi'] && paper['link']">|</span>
+                                <a *ngIf="paper['link']?.[2]?.['@href']" [href]="paper['link'][2]['@href']" target="_blank" class="scopus-ref">
+                                    View in Scopus
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="empty-papers" *ngIf="selectedAuthorPapers.length === 0">
+                        <span class="material-icons">folder_open</span>
+                        <p>No recent publications found for this author ID.</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="modal-footer">
+                <div class="modal-pagination">
+                    <button class="modal-page-btn" (click)="modalPrevPage()" [disabled]="modalStartIndex === 0 || isModalLoading">
+                        <span class="material-icons">chevron_left</span>
+                    </button>
+                    <span class="modal-range-text">
+                        Showing {{ modalStartIndex + 1 }} - {{ (modalStartIndex + selectedAuthorPapers.length) | number }} of {{ modalTotalResults | number }}
+                    </span>
+                    <button class="modal-page-btn" (click)="modalNextPage()" [disabled]="modalStartIndex + modalItemsPerPage >= modalTotalResults || isModalLoading">
+                        <span class="material-icons">chevron_right</span>
+                    </button>
+                </div>
+                <button class="action-btn" (click)="closeModal()">Close Window</button>
+            </footer>
+        </div>
+    </div>
+</div>

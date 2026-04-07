@@ -1,0 +1,44 @@
+{
+  "name": "paper-processor",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/animations": "^19.0.0",
+    "@angular/common": "^19.0.0",
+    "@angular/compiler": "^19.0.0",
+    "@angular/core": "^19.0.0",
+    "@angular/forms": "^19.0.0",
+    "@angular/platform-browser": "^19.0.0",
+    "@angular/platform-browser-dynamic": "^19.0.0",
+    "@angular/router": "^19.0.0",
+    "@types/d3": "^7.4.3",
+    "@types/d3-geo": "^3.1.0",
+    "@types/topojson-client": "^3.1.5",
+    "3d-force-graph": "^1.79.1",
+    "axios": "^1.7.9",
+    "chart.js": "^4.5.1",
+    "d3": "^7.9.0",
+    "d3-geo": "^3.1.1",
+    "rxjs": "~7.8.0",
+    "topojson-client": "^3.1.0",
+    "tslib": "^2.3.0",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^19.0.0",
+    "@angular/cli": "^21.1.2",
+    "@angular/compiler-cli": "^19.0.0",
+    "@tailwindcss/postcss": "^4.2.0",
+    "@types/node": "^22.10.2",
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.19",
+    "typescript": "~5.6.0"
+  }
+}

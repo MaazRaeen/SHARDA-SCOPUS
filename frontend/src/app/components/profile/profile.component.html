@@ -1,0 +1,493 @@
+<canvas id="profile-canvas"
+    style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;"></canvas>
+<div class="profile-scan-grid"></div>
+
+<div class="profile-container">
+    <!-- Background orbs -->
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+
+    <div class="profile-layout">
+        <!-- ═══════════ SIDEBAR ═══════════ -->
+        <aside class="sidebar">
+
+            <!-- Avatar Upload -->
+            <div class="avatar-wrap" (click)="triggerFileUpload()" title="Click to change photo">
+                <div class="avatar" [style.background]="getRoleGradient(user?.role)">
+                    <img *ngIf="profileImage" [src]="profileImage" class="avatar-img" alt="PFP">
+                    <span *ngIf="!profileImage" class="avatar-letters">{{ getInitials(user?.name) }}</span>
+                </div>
+                <div class="avatar-cam-overlay"><span class="material-icons">photo_camera</span></div>
+                <div class="status-dot"></div>
+                <input #fileInput type="file" accept="image/*" (change)="onFileSelected($event)" hidden>
+            </div>
+
+            <p class="sb-name">{{ user?.name }}</p>
+            <p class="sb-role" [style.color]="getRoleColor(user?.role)">
+                <span class="material-icons">{{ getRoleIcon(user?.role) }}</span> {{ user?.role }}
+            </p>
+            <button class="rmv-btn" *ngIf="profileImage" (click)="removePfp(); $event.stopPropagation()">Remove
+                Photo</button>
+
+            <nav class="sb-nav">
+                <a class="sb-link" [class.active]="activeTab==='overview'" (click)="setActiveTab('overview')">
+                    <span class="material-icons">grid_view</span> Overview
+                </a>
+                <a class="sb-link" *ngIf="isPersonalDash" [class.active]="activeTab==='papers'"
+                    (click)="setActiveTab('papers')">
+                    <span class="material-icons">description</span> My Papers
+                </a>
+                <a class="sb-link" [class.active]="activeTab==='security'" (click)="setActiveTab('security')">
+                    <span class="material-icons">shield</span> Security
+                </a>
+                <a class="sb-link" [class.active]="activeTab==='api'" (click)="setActiveTab('api')">
+                    <span class="material-icons">code</span> API Access
+                </a>
+                <a class="sb-link" [class.active]="activeTab==='audit'" (click)="setActiveTab('audit')">
+                    <span class="material-icons">history</span> Audit Logs
+                </a>
+            </nav>
+
+            <div class="sb-sep"></div>
+
+            <button class="sign-out-btn" (click)="logout()">
+                <span class="material-icons">power_settings_new</span> Sign Out
+            </button>
+        </aside>
+
+        <!-- ═══════════ MAIN ═══════════ -->
+        <main class="main">
+
+            <!-- ── OVERVIEW ── -->
+            <ng-container *ngIf="activeTab==='overview'">
+
+                <!-- Hero Banner -->
+                <div class="hero-banner" [style.background]="getRoleGradient(user?.role)">
+                    <div class="hero-circles">
+                        <div class="hc hc-1"></div>
+                        <div class="hc hc-2"></div>
+                    </div>
+                    <div class="hero-left">
+                        <span class="hero-eyebrow">Welcome back 👋</span>
+                        <h1 class="hero-name">{{ user?.name }}</h1>
+                        <span class="hero-badge">
+                            <span class="material-icons">{{ getRoleIcon(user?.role) }}</span>
+                            {{ user?.role }} · Sharda University
+                        </span>
+                    </div>
+                    <div class="hero-avatar-frame">
+                        <img *ngIf="profileImage" [src]="profileImage" class="hero-avatar-img" alt="PFP">
+                        <span *ngIf="!profileImage" class="hero-avatar-letters">{{ getInitials(user?.name) }}</span>
+                    </div>
+                </div>
+
+                <!-- Personal Research Stats (Professor Zenith Only) -->
+                <div class="stats-grid" *ngIf="isPersonalDash && authorStats">
+                    <div class="stat-card">
+                        <div class="sc-icon blue"><span class="material-icons">article</span></div>
+                        <div class="sc-info">
+                            <span class="sc-label">Total Papers</span>
+                            <span class="sc-value">{{ authorStats.totalPapers }}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="sc-icon amber"><span class="material-icons">format_quote</span></div>
+                        <div class="sc-info">
+                            <span class="sc-label">Total Citations</span>
+                            <span class="sc-value">{{ authorStats.totalCitations }}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="sc-icon purple"><span class="material-icons">trending_up</span></div>
+                        <div class="sc-info">
+                            <span class="sc-label">H-Index</span>
+                            <span class="sc-value">{{ authorStats.hIndex }}</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="sc-icon teal"><span class="material-icons">business</span></div>
+                        <div class="sc-info">
+                            <span class="sc-label">Department</span>
+                            <span class="sc-value">{{ authorStats.department }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Scholar Lifetime Stats Card (Professor/Other only) -->
+                <div class="detail-row scholar-row" *ngIf="isPersonalDash">
+                    <section class="detail-card scholar-card">
+                        <div class="dc-head">
+                            <span class="dc-icon-box dci-scholar">
+                                <span class="material-icons">school</span>
+                            </span>
+                            <div>
+                                <h3 class="dc-title">Google Scholar — Lifetime Stats</h3>
+                                <p class="dc-sub">All-time publication impact from your Scholar profile</p>
+                            </div>
+                            <button class="scholar-refresh-btn" (click)="refreshScholar()" [disabled]="isLoadingScholar"
+                                *ngIf="scholarData?.scholarId" title="Refresh stats (once per 24h)">
+                                <span class="material-icons" [class.spin]="isLoadingScholar">refresh</span>
+                            </button>
+                        </div>
+
+                        <!-- Loading -->
+                        <div class="scholar-loading" *ngIf="isLoadingScholar">
+                            <div class="loader-circle"></div>
+                            <span>Fetching Scholar data...</span>
+                        </div>
+
+                        <!-- Stats -->
+                        <div class="scholar-stats" *ngIf="!isLoadingScholar && scholarData?.scholarId">
+                            <div class="scholar-stat">
+                                <span class="material-icons ss-icon blue">article</span>
+                                <div>
+                                    <span class="ss-val">{{ scholarData.totalPapers ?? '—' }}</span>
+                                    <span class="ss-label">Total Papers</span>
+                                </div>
+                            </div>
+                            <div class="scholar-stat">
+                                <span class="material-icons ss-icon amber">format_quote</span>
+                                <div>
+                                    <span class="ss-val">{{ scholarData.citations ?? '—' }}</span>
+                                    <span class="ss-label">Total Citations</span>
+                                </div>
+                            </div>
+                            <div class="scholar-stat">
+                                <span class="material-icons ss-icon purple">trending_up</span>
+                                <div>
+                                    <span class="ss-val">{{ scholarData.hIndex ?? '—' }}</span>
+                                    <span class="ss-label">H-Index</span>
+                                </div>
+                            </div>
+                            <div class="scholar-stat">
+                                <span class="material-icons ss-icon teal">schedule</span>
+                                <div>
+                                    <span class="ss-val" style="font-size:0.85rem">{{ scholarData.fetchedAt ?
+                                        (scholarData.fetchedAt | date:'mediumDate') : 'Pending' }}</span>
+                                    <span class="ss-label">Last Synced</span>
+                                </div>
+                            </div>
+
+                            <div class="scholar-msg success" *ngIf="scholarRefreshMsg">
+                                {{ scholarRefreshMsg }}
+                            </div>
+
+                            <a [href]="scholarData.scholarUrl" target="_blank" class="scholar-profile-link">
+                                <span class="material-icons">open_in_new</span> View Scholar Profile
+                            </a>
+                        </div>
+
+                        <!-- Not linked — show input -->
+                        <div class="scholar-link-form" *ngIf="!isLoadingScholar && !scholarData?.scholarId">
+                            <p class="scholar-info-text">
+                                <span class="material-icons" style="font-size:1rem;vertical-align:middle">info</span>
+                                Link your Google Scholar profile to display your all-time publication stats here.
+                            </p>
+                            <div class="scholar-link-input">
+                                <span class="material-icons">link</span>
+                                <input type="url" [(ngModel)]="scholarLinkUrl"
+                                    placeholder="https://scholar.google.com/citations?user=XXXX">
+                            </div>
+                            <div class="scholar-error" *ngIf="scholarError">{{ scholarError }}</div>
+                            <button class="scholar-link-btn" (click)="linkScholar()"
+                                [disabled]="!scholarLinkUrl || isLinkingScholar">
+                                <span class="material-icons">{{ isLinkingScholar ? 'hourglass_empty' : 'add_link'
+                                    }}</span>
+                                {{ isLinkingScholar ? 'Linking...' : 'Link Profile' }}
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- Details + Actions row -->
+                <div class="detail-row">
+                    <!-- Profile Identity Card -->
+                    <section class="detail-card">
+                        <div class="dc-head">
+                            <span class="dc-icon-box dci-blue"><span class="material-icons">badge</span></span>
+                            <div>
+                                <h3 class="dc-title">Profile Identity</h3>
+                                <p class="dc-sub">Your account information</p>
+                            </div>
+                        </div>
+                        <div class="dc-fields">
+                            <div class="dc-field">
+                                <span class="dc-label">Full Name</span>
+                                <span class="dc-value">{{ user?.name }}</span>
+                            </div>
+                            <div class="dc-field">
+                                <span class="dc-label">Email Address</span>
+                                <span class="dc-value break">{{ user?.email }}</span>
+                            </div>
+                            <div class="dc-field">
+                                <span class="dc-label">Role</span>
+                                <span class="role-tag" [style.background]="getRoleColor(user?.role)+'18'"
+                                    [style.color]="getRoleColor(user?.role)">
+                                    <span class="material-icons">{{ getRoleIcon(user?.role) }}</span>{{ user?.role }}
+                                </span>
+                            </div>
+                            <div class="dc-field">
+                                <span class="dc-label">Status</span>
+                                <span class="verified-tag">
+                                    <span class="material-icons">verified</span> Verified Member
+                                </span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Quick Actions Card -->
+                    <section class="detail-card">
+                        <div class="dc-head">
+                            <span class="dc-icon-box dci-purple"><span class="material-icons">bolt</span></span>
+                            <div>
+                                <h3 class="dc-title">Quick Actions</h3>
+                                <p class="dc-sub">Common account tasks</p>
+                            </div>
+                        </div>
+                        <div class="action-list">
+                            <button class="action-item" (click)="setActiveTab('security')">
+                                <div class="ai-icon ai-green"><span class="material-icons">lock_reset</span></div>
+                                <div class="ai-text">
+                                    <span class="ai-title">Change Password</span>
+                                    <span class="ai-sub">Update your credentials</span>
+                                </div>
+                                <span class="material-icons ai-arrow">chevron_right</span>
+                            </button>
+                            <button class="action-item" (click)="setActiveTab('api')">
+                                <div class="ai-icon ai-blue"><span class="material-icons">vpn_key</span></div>
+                                <div class="ai-text">
+                                    <span class="ai-title">Manage API Keys</span>
+                                    <span class="ai-sub">Developer access tokens</span>
+                                </div>
+                                <span class="material-icons ai-arrow">chevron_right</span>
+                            </button>
+                            <button class="action-item" (click)="setActiveTab('audit')">
+                                <div class="ai-icon ai-amber"><span class="material-icons">history</span></div>
+                                <div class="ai-text">
+                                    <span class="ai-title">View Audit Logs</span>
+                                    <span class="ai-sub">Recent account activity</span>
+                                </div>
+                                <span class="material-icons ai-arrow">chevron_right</span>
+                            </button>
+                            <button class="action-item danger" (click)="logout()">
+                                <div class="ai-icon ai-red"><span class="material-icons">logout</span></div>
+                                <div class="ai-text">
+                                    <span class="ai-title">Sign Out</span>
+                                    <span class="ai-sub">End current session</span>
+                                </div>
+                                <span class="material-icons ai-arrow">chevron_right</span>
+                            </button>
+                        </div>
+                    </section>
+                </div>
+
+            </ng-container>
+
+            <!-- ── SECURITY ── -->
+            <ng-container *ngIf="activeTab==='security'">
+                <div class="tab-header">
+                    <h2>Security</h2>
+                    <p>Manage your credentials & active sessions</p>
+                </div>
+                <div class="two-col">
+                    <section class="detail-card">
+                        <div class="dc-head">
+                            <span class="dc-icon-box dci-green"><span class="material-icons">lock_reset</span></span>
+                            <div>
+                                <h3 class="dc-title">Change Password</h3>
+                                <p class="dc-sub">Update your login credentials</p>
+                            </div>
+                        </div>
+                        <form (ngSubmit)="updatePassword()" #pwForm="ngForm" class="pw-form">
+                            <div class="field">
+                                <label>Current Password</label>
+                                <div class="inp-wrap">
+                                    <span class="material-icons inp-ico">lock</span>
+                                    <input type="password" [(ngModel)]="passwordData.currentPassword"
+                                        name="currentPassword" required placeholder="Your current password">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>New Password</label>
+                                <div class="inp-wrap">
+                                    <span class="material-icons inp-ico">vpn_key</span>
+                                    <input type="password" [(ngModel)]="passwordData.password" name="password" required
+                                        placeholder="Min 8 characters">
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label>Confirm Password</label>
+                                <div class="inp-wrap">
+                                    <span class="material-icons inp-ico">vpn_key</span>
+                                    <input type="password" [(ngModel)]="passwordData.confirmPassword"
+                                        name="confirmPassword" required placeholder="Repeat new password">
+                                </div>
+                            </div>
+                            <div class="alert-msg" *ngIf="passwordStatus.message"
+                                [class.is-err]="passwordStatus.type==='error'"
+                                [class.is-ok]="passwordStatus.type==='success'">
+                                <span class="material-icons">{{ passwordStatus.type === 'error' ? 'error_outline' :
+                                    'check_circle_outline' }}</span>
+                                {{ passwordStatus.message }}
+                            </div>
+                            <button type="submit" class="save-btn" [disabled]="isUpdatingPassword || !pwForm.valid">
+                                <span class="material-icons">{{ isUpdatingPassword ? 'hourglass_empty' : 'save'
+                                    }}</span>
+                                {{ isUpdatingPassword ? 'Saving…' : 'Save Password' }}
+                            </button>
+                        </form>
+                    </section>
+
+                    <section class="detail-card">
+                        <div class="dc-head">
+                            <span class="dc-icon-box dci-amber"><span class="material-icons">devices</span></span>
+                            <div>
+                                <h3 class="dc-title">Active Sessions</h3>
+                                <p class="dc-sub">Devices currently logged in</p>
+                            </div>
+                        </div>
+                        <div class="session-list">
+                            <div class="session-row current">
+                                <div class="sdev-icon"><span class="material-icons">computer</span></div>
+                                <div class="sdev-body">
+                                    <div class="sdev-name">Chrome · Windows <span class="current-tag">Current</span>
+                                    </div>
+                                    <div class="sdev-meta">Mumbai, India · Just now</div>
+                                </div>
+                            </div>
+                            <div class="session-row">
+                                <div class="sdev-icon"><span class="material-icons">smartphone</span></div>
+                                <div class="sdev-body">
+                                    <div class="sdev-name">Safari · iPhone</div>
+                                    <div class="sdev-meta">Greater Noida · 2 days ago</div>
+                                </div>
+                                <button class="revoke-btn" (click)="logout()">Revoke</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </ng-container>
+
+            <!-- ── MY PAPERS (PERSONAL DASHBOARD) ── -->
+            <ng-container *ngIf="activeTab==='papers' && isPersonalDash">
+                <div class="tab-header">
+                    <h2>My Research Papers</h2>
+                    <p>Manage and track your published research work</p>
+                </div>
+
+                <div class="papers-card">
+                    <div class="pc-header">
+                        <div class="pc-search">
+                            <span class="material-icons">search</span>
+                            <input type="text" placeholder="Search my papers..." (input)="onSearchPapers($event)">
+                        </div>
+                        <button class="pc-refresh" (click)="loadPersonalResearch()" [disabled]="isLoadingPapers">
+                            <span class="material-icons" [class.spin]="isLoadingPapers">refresh</span>
+                        </button>
+                    </div>
+
+                    <div class="papers-list" *ngIf="!isLoadingPapers; else loadingPapers">
+                        <div class="paper-item" *ngFor="let paper of personalPapers">
+                            <div class="pi-main">
+                                <h4 class="pi-title">{{ paper.paperTitle }}</h4>
+                                <div class="pi-meta">
+                                    <span class="pi-tag"><span class="material-icons">calendar_today</span> {{
+                                        paper.year }}</span>
+                                    <span class="pi-tag"><span class="material-icons">business</span> {{
+                                        paper.department }}</span>
+                                    <span class="pi-tag citation" *ngIf="paper.citedBy > 0">
+                                        <span class="material-icons">format_quote</span> {{ paper.citedBy }} Citations
+                                    </span>
+                                </div>
+                                <div class="pi-source">{{ paper.sourcePaper }}</div>
+                            </div>
+                            <div class="pi-actions">
+                                <a [href]="paper.link" target="_blank" class="pi-btn" *ngIf="paper.link"
+                                    title="View Source">
+                                    <span class="material-icons">open_in_new</span>
+                                </a>
+                                <button class="pi-btn" title="View Details">
+                                    <span class="material-icons">more_vert</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="empty-papers" *ngIf="personalPapers.length === 0">
+                            <span class="material-icons">search_off</span>
+                            <p>No papers found matching your name.</p>
+                        </div>
+                    </div>
+
+                    <ng-template #loadingPapers>
+                        <div class="papers-loading">
+                            <div class="loader-circle"></div>
+                            <p>Loading your research...</p>
+                        </div>
+                    </ng-template>
+                </div>
+            </ng-container>
+
+            <!-- ── API ── -->
+            <ng-container *ngIf="activeTab==='api'">
+                <div class="tab-header">
+                    <h2>API Access</h2>
+                    <p>Developer keys & programmatic access</p>
+                </div>
+                <section class="detail-card">
+                    <div class="dc-head">
+                        <span class="dc-icon-box dci-teal"><span class="material-icons">vpn_key</span></span>
+                        <div>
+                            <h3 class="dc-title">Developer API Keys</h3>
+                            <p class="dc-sub">Integrate Sharda Research data into your apps</p>
+                        </div>
+                    </div>
+                    <div class="api-list">
+                        <div class="api-row" *ngFor="let key of getApiKeys()">
+                            <div class="api-info">
+                                <div class="api-name">{{ key.name }}</div>
+                                <code class="api-code">{{ key.key }}</code>
+                                <div class="api-date">Created {{ key.created }}</div>
+                            </div>
+                            <div class="api-btns">
+                                <button class="icon-btn"><span class="material-icons">content_copy</span></button>
+                                <button class="icon-btn danger"><span
+                                        class="material-icons">delete_outline</span></button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="gen-btn">
+                        <span class="material-icons">add_circle_outline</span> Generate New Key
+                    </button>
+                </section>
+            </ng-container>
+
+            <!-- ── AUDIT ── -->
+            <ng-container *ngIf="activeTab==='audit'">
+                <div class="tab-header">
+                    <h2>Audit Logs</h2>
+                    <p>Recent account activity & security events</p>
+                </div>
+                <section class="detail-card">
+                    <div class="dc-head">
+                        <span class="dc-icon-box dci-rose"><span class="material-icons">manage_history</span></span>
+                        <div>
+                            <h3 class="dc-title">Activity History</h3>
+                            <p class="dc-sub">All account events in chronological order</p>
+                        </div>
+                    </div>
+                    <div class="audit-list">
+                        <div class="audit-row" *ngFor="let log of getAuditLogs()">
+                            <div class="audit-dot"></div>
+                            <div class="audit-body">
+                                <div class="audit-action">{{ log.action }}</div>
+                                <div class="audit-meta">{{ log.device }} · {{ log.date | date:'medium' }}</div>
+                            </div>
+                            <span class="ok-pill">Success</span>
+                        </div>
+                    </div>
+                </section>
+            </ng-container>
+
+        </main>
+    </div>
+</div>

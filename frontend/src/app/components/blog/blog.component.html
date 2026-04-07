@@ -1,0 +1,132 @@
+<div class="blog-container">
+
+    <!-- 1. Navbar -->
+    <nav class="glass-nav">
+        <div class="nav-brand">
+            <div class="logo-mark">S</div>
+            <span class="logo-text">Sharda <span class="highlight">Research Hub</span></span>
+        </div>
+
+        <div class="nav-links">
+            <a routerLink="/dashboard" class="nav-link">Dashboard</a>
+            <a routerLink="/blog" class="nav-link active">Blog</a>
+        </div>
+    </nav>
+
+    <!-- 2. Hero Section -->
+    <header class="hero-section">
+        <!-- Animated background particles -->
+        <div class="particle p1"></div>
+        <div class="particle p2"></div>
+        <div class="particle p3"></div>
+        <div class="particle p4"></div>
+
+        <div class="hero-content">
+            <h1 class="hero-title">
+                <span class="reveal-text">Explore Research at</span>
+                <br>
+                <span class="reveal-text gradient-text">Sharda University</span>
+            </h1>
+            <p class="hero-subtitle fade-in-delay">
+                Discover groundbreaking studies, innovative papers, and academic excellence across our diverse
+                departments.
+            </p>
+            <button class="cta-button pulse-btn fade-in-delay-2">
+                <span class="material-icons">auto_awesome</span>
+                View Latest Publications
+            </button>
+        </div>
+    </header>
+
+    <!-- 3. Filter Bar -->
+    <section class="filter-section">
+        <div class="filter-container">
+            <button *ngFor="let cat of categories" class="filter-pill" [class.active]="activeCategory === cat"
+                (click)="setCategory(cat)">
+                {{ cat }}
+            </button>
+        </div>
+    </section>
+
+    <!-- 4. Blog/Paper Cards Grid -->
+    <main class="grid-section">
+        <div class="abstract-bg"></div>
+
+        <div class="papers-grid">
+            <!-- Empty State -->
+            <div *ngIf="filteredPosts.length === 0" class="empty-state">
+                <span class="material-icons">search_off</span>
+                <h3>No papers found for this category.</h3>
+            </div>
+
+            <!-- Paper Cards -->
+            <article *ngFor="let post of filteredPosts" class="paper-card glass-card" #paperCard>
+
+                <div class="card-image-wrap">
+                    <img [src]="post.imageUrl" [alt]="post.title" class="card-image">
+                    <div class="category-badge" [style.background]="getCategoryColor(post.category)">
+                        {{ post.category }}
+                    </div>
+                </div>
+
+                <div class="card-content">
+                    <div class="card-meta">
+                        <span class="meta-date"><span class="material-icons">calendar_today</span> {{ post.date
+                            }}</span>
+                    </div>
+
+                    <h3 class="card-title">{{ post.title }}</h3>
+
+                    <div class="author-info">
+                        <span class="author-name">{{ post.author }}</span>
+                        <span class="department-name">{{ post.department }}</span>
+                    </div>
+
+                    <p class="card-excerpt">
+                        {{ post.excerpt }}
+                    </p>
+
+                    <div class="card-footer">
+                        <button class="read-more-btn">
+                            Read More
+                            <span class="material-icons arrow-icon">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <!-- 5. Pagination -->
+    <section class="pagination-section">
+        <div class="pagination">
+            <button class="page-btn prev-btn" disabled>
+                <span class="material-icons">chevron_left</span>
+            </button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <span class="page-dots">...</span>
+            <button class="page-btn next-btn">
+                <span class="material-icons">chevron_right</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- 6. Footer -->
+    <footer class="site-footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <div class="logo-mark small">S</div>
+                <span>Sharda Research Hub</span>
+            </div>
+            <div class="footer-socials">
+                <a href="#" class="social-icon"><span class="material-icons">language</span></a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 Sharda University Research Development Cell. All rights reserved.</p>
+        </div>
+    </footer>
+
+</div>

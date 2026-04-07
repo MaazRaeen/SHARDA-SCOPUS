@@ -1,0 +1,394 @@
+<canvas id="particle-canvas"></canvas>
+<div class="landing-page">
+    <!-- Custom Cursor -->
+    <div class="custom-cursor" id="custom-cursor"></div>
+    <div class="cursor-ring" id="cursor-ring"></div>
+
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
+        <div class="logo-text">Sharda<span class="logo-dot">Analytics</span></div>
+        <div class="nav-links" *ngIf="user$ | async as user; else guestNav">
+            <a routerLink="/dashboard" class="nav-link"
+                *ngIf="user.role !== 'Professor' || user.designation !== 'Other'">Dashboard</a>
+            <a routerLink="/profile" class="nav-link"
+                *ngIf="user.role === 'Professor' && user.designation === 'Other'">My Research</a>
+            <a routerLink="/papers" class="nav-link">Papers</a>
+            <a routerLink="/profile" class="nav-btn">My Profile</a>
+            <a routerLink="/upload" class="nav-btn nav-btn-primary"
+                *ngIf="user.role === 'Administrator' || (user.role === 'Professor' && user.designation !== 'Other')">
+                Upload Data
+            </a>
+        </div>
+        <ng-template #guestNav>
+            <div class="nav-links">
+                <a routerLink="/dashboard" class="nav-link">Dashboard</a>
+                <a routerLink="/papers" class="nav-link">Papers</a>
+                <a routerLink="/auth" class="nav-link">Sign In</a>
+                <a routerLink="/auth" class="nav-btn nav-btn-primary hover-target">Get Started</a>
+            </div>
+        </ng-template>
+    </nav>
+
+    <!-- HERO -->
+    <header class="hero">
+        <div class="orb-1 hero-orb"></div>
+        <div class="orb-2 hero-orb"></div>
+        <div class="orb-3 hero-orb"></div>
+        <div class="hero-grid" id="parallax-grid"></div>
+        <!-- Cinematic grain overlay -->
+        <div class="hero-grain"></div>
+        <!-- Mouse-tracked spotlight -->
+        <div class="hero-spotlight" id="hero-spotlight"></div>
+
+        <div class="hero-content">
+            <!-- Left: Text -->
+            <div class="hero-text">
+                <div class="hero-eyebrow hover-target">
+                    <span class="eyebrow-dot"></span>
+                    Now with AI-Powered Insights
+                </div>
+
+                <h1 class="hero-title">
+                    Accelerate the Impact of your Research
+                    <span class="typewriter-span" id="typewriter-el">Academic Intelligence</span>
+                </h1>
+
+                <p class="hero-sub">
+                    The unified analytics engine for tracking institutional output, department metrics, and global
+                    citations.
+                </p>
+
+                <div class="hero-cta" *ngIf="user$ | async as user; else guestCTA">
+                    <a [routerLink]="user.designation === 'Other' ? '/blog' : '/dashboard'"
+                        class="btn-primary hover-target">
+                        {{ user.designation === 'Other' ? 'Get Started' : 'Launch Workspace' }}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12 5 19 12 12 19" />
+                        </svg>
+                    </a>
+                    <a routerLink="/profile" class="btn-outline hover-target">View Profile</a>
+                </div>
+
+                <ng-template #guestCTA>
+                    <div class="hero-cta">
+                        <a routerLink="/auth" class="btn-primary hover-target">
+                            Launch Platform
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                                <polyline points="12 5 19 12 12 19" />
+                            </svg>
+                        </a>
+                        <a routerLink="/dashboard" class="btn-outline hover-target">Explore Demo</a>
+                    </div>
+                </ng-template>
+
+                <div class="hero-proof">
+                    <div class="proof-avatars">
+                        <div class="proof-avatar">A</div>
+                        <div class="proof-avatar" style="background:linear-gradient(135deg,#06b6d4,#4F8EF7);">B</div>
+                        <div class="proof-avatar" style="background:linear-gradient(135deg,#7C3AED,#F472B6);">C</div>
+                        <div class="proof-avatar" style="background:linear-gradient(135deg,#10b981,#06b6d4);">D</div>
+                    </div>
+                    <p class="proof-text"><strong>450+ researchers</strong> already on the platform</p>
+                </div>
+            </div>
+
+            <!-- Right: Interactive Globe -->
+            <div class="hero-visual hero-globe-wrap">
+                <div class="globe-glow-ring"></div>
+                <app-interactive-globe [size]="460"></app-interactive-globe>
+            </div>
+        </div>
+
+        <div class="scroll-hint">
+            <span>Scroll</span>
+            <div class="mouse-icon">
+                <div class="mouse-wheel"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MARQUEE -->
+    <div class="marquee-section">
+        <div class="marquee-label">Indexing from the world's leading publishers</div>
+        <div class="marquee-track">
+            <div class="marquee-group">
+                <span class="brand-chip">Scopus</span>
+                <span class="brand-chip">Web of Science</span>
+                <span class="brand-chip">IEEE Xplore</span>
+                <span class="brand-chip">Springer Nature</span>
+                <span class="brand-chip">Elsevier</span>
+                <span class="brand-chip">PubMed</span>
+                <span class="brand-chip">Taylor & Francis</span>
+                <span class="brand-chip">MDPI</span>
+                <span class="brand-chip">Wiley</span>
+                <span class="brand-chip">ACM Digital Library</span>
+            </div>
+            <div class="marquee-group" aria-hidden="true">
+                <span class="brand-chip">Scopus</span>
+                <span class="brand-chip">Web of Science</span>
+                <span class="brand-chip">IEEE Xplore</span>
+                <span class="brand-chip">Springer Nature</span>
+                <span class="brand-chip">Elsevier</span>
+                <span class="brand-chip">PubMed</span>
+                <span class="brand-chip">Taylor & Francis</span>
+                <span class="brand-chip">MDPI</span>
+                <span class="brand-chip">Wiley</span>
+                <span class="brand-chip">ACM Digital Library</span>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- INSTITUTIONAL IMPACT SECTION -->
+    <section class="globe-section observe-section">
+        <div class="globe-section-card">
+            <!-- Ambient glow -->
+            <div class="globe-ambient-glow"></div>
+
+            <div class="globe-section-inner">
+                <!-- Left content -->
+                <div class="globe-text">
+                    <div class="globe-status-badge">
+                        <span class="globe-status-dot"></span>
+                        Institutional Intelligence
+                    </div>
+
+                    <h2 class="globe-title">
+                        Metrics that
+                        <br>
+                        <span class="text-gradient">Drive Innovation</span>
+                    </h2>
+
+                    <p class="globe-sub">
+                        Empower your faculty with actionable insights. Track publication velocity, interdepartmental collaboration, and secure funding milestones — all updated automatically.
+                    </p>
+
+                    <div class="globe-stats-row">
+                        <div class="globe-stat">
+                            <p class="globe-stat-num">#1</p>
+                            <p class="globe-stat-label">In Research</p>
+                        </div>
+                        <div class="globe-stat-divider"></div>
+                        <div class="globe-stat">
+                            <p class="globe-stat-num">500+</p>
+                            <p class="globe-stat-label">Active Grants</p>
+                        </div>
+                        <div class="globe-stat-divider"></div>
+                        <div class="globe-stat">
+                            <p class="globe-stat-num">Top 5%</p>
+                            <p class="globe-stat-label">Global Impact</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right content (replacement for globe) -->
+                <div class="globe-canvas-wrap" style="flex-direction: column; gap: 1.2rem; align-items: stretch; padding: 2.5rem 3.5rem;">
+                    
+                    <div class="feat-card observe-section tilt-me" style="border-radius: 16px; transform: translateX(20px);">
+                        <div class="feat-card-inner" style="padding: 1.25rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <div class="feat-icon" style="color: var(--cyan); margin: 0; width: 44px; height: 44px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+                                    </div>
+                                    <div>
+                                        <h4 style="color: #fff; font-size: 0.95rem; font-weight: 700; margin-bottom: 2px;">Citation Velocity</h4>
+                                        <p style="color: var(--muted); font-size: 0.8rem; margin: 0;">+24% this quarter</p>
+                                    </div>
+                                </div>
+                                <span class="feat-tag cyan">High</span>
+                            </div>
+                            <div style="height: 40px; display: flex; align-items: flex-end; gap: 4px; padding-left: 60px;">
+                                <div class="mock-bar-chart" style="height: 30%; background: var(--border);"></div>
+                                <div class="mock-bar-chart" style="height: 50%; background: var(--border);"></div>
+                                <div class="mock-bar-chart" style="height: 40%; background: var(--border);"></div>
+                                <div class="mock-bar-chart" style="height: 70%; background: var(--cyan);"></div>
+                                <div class="mock-bar-chart" style="height: 100%; background: var(--blue);"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feat-card observe-section tilt-me" style="border-radius: 16px; transform: translateX(-15px); z-index: 10; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+                        <div class="feat-card-inner" style="padding: 1.25rem; border-color: rgba(124, 58, 237, 0.4); background: rgba(15, 15, 35, 0.99);">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <div class="feat-icon" style="color: var(--violet); margin: 0; width: 44px; height: 44px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    </div>
+                                    <div>
+                                        <h4 style="color: #fff; font-size: 0.95rem; font-weight: 700; margin-bottom: 2px;">Q1 Publications</h4>
+                                        <p style="color: var(--muted); font-size: 0.8rem; margin: 0;">120 new papers accepted</p>
+                                    </div>
+                                </div>
+                                <span class="feat-tag violet">Target Hit</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="feat-card observe-section tilt-me" style="border-radius: 16px; transform: translateX(10px);">
+                        <div class="feat-card-inner" style="padding: 1.25rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <div class="feat-icon" style="color: var(--green); margin: 0; width: 44px; height: 44px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                    </div>
+                                    <div>
+                                        <h4 style="color: #fff; font-size: 0.95rem; font-weight: 700; margin-bottom: 2px;">Global Reach</h4>
+                                        <p style="color: var(--muted); font-size: 0.8rem; margin: 0;">Cross-institutional research</p>
+                                    </div>
+                                </div>
+                                <span class="feat-tag green">Active</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features-section">
+        <div class="observe-section">
+            <div class="section-label"><span class="section-label-bar"></span>Platform Features</div>
+            <h2 class="section-title">Everything you need to<br><span class="text-gradient">scale your research.</span>
+            </h2>
+            <p class="section-sub">A highly polished suite of tools designed to merge, track, and visualize academic
+                output with precision and speed.</p>
+        </div>
+
+        <div class="bento">
+            <!-- Card 1: Span 2 -->
+            <div class="feat-card span-2 observe-section tilt-me hover-target">
+                <div class="feat-card-inner">
+                    <div class="feat-icon" style="color:#06B6D4;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                        </svg>
+                    </div>
+                    <h3>Intelligent Data Merge & Deduplication</h3>
+                    <p>Upload overlapping Scopus CSVs from multiple time ranges. Our engine automatically deduplicates
+                        records, reconciles citation counts, and builds a perfect master record — zero manual work
+                        required.</p>
+                    <div class="feat-tags">
+                        <span class="feat-tag">Scopus CSV</span>
+                        <span class="feat-tag cyan">Smart Diff</span>
+                        <span class="feat-tag violet">Auto-merge</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Tall -->
+            <div class="feat-card span-row-2 observe-section tilt-me hover-target">
+                <div class="feat-card-inner" style="justify-content:space-between;display:flex;flex-direction:column;">
+                    <div>
+                        <div class="feat-icon" style="color:#7C3AED;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+                                <path d="M22 12A10 10 0 0 0 12 2v10z" />
+                            </svg>
+                        </div>
+                        <h3>Real-time Department Analytics</h3>
+                        <p>Visualize h-index, citation growth, and Q1–Q4 quartile distribution across all departments.
+                            Drill down into specific years, paper types, and co-authorship patterns.</p>
+                    </div>
+                    <div class="feat-tags" style="margin-top:auto;padding-top:1.5rem;">
+                        <span class="feat-tag violet">H-index</span>
+                        <span class="feat-tag">Quartiles</span>
+                        <span class="feat-tag green">Live Charts</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="feat-card observe-section tilt-me hover-target">
+                <div class="feat-card-inner">
+                    <div class="feat-icon" style="color:#4F8EF7;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                    </div>
+                    <h3>Smart Author Search</h3>
+                    <p>Fuzzy-matching engine with Cross-Paper Recovery resolves abbreviated names across all papers
+                        instantly.</p>
+                    <div class="feat-tags"><span class="feat-tag">Fuzzy Match</span><span
+                            class="feat-tag cyan">Cross-Recovery</span></div>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="feat-card observe-section tilt-me hover-target">
+                <div class="feat-card-inner">
+                    <div class="feat-icon" style="color:#10b981;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                    </div>
+                    <h3>Background Sync Engine</h3>
+                    <p>DOI enrichment, date precision, and citation sync all run silently in the background — never
+                        block your workflow.</p>
+                    <div class="feat-tags"><span class="feat-tag green">Always Syncing</span><span class="feat-tag">DOI
+                            API</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+        <div class="cta-inner observe-section">
+            <div class="cta-badge">✦ Free for Sharda Faculty & Researchers</div>
+            <h2 class="cta-title">
+                Ready to <span class="text-gradient">accelerate</span><br>your research?
+            </h2>
+            <p class="cta-sub">
+                Join hundreds of Sharda scholars tracking their academic impact
+                with our unified, AI-powered intelligence platform.
+            </p>
+            <div class="cta-actions">
+                <a routerLink="/auth" class="btn-primary hover-target">
+                    Create Free Account
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <polyline points="12 5 19 12 12 19" />
+                    </svg>
+                </a>
+                <a routerLink="/dashboard" class="btn-outline hover-target">Explore Dashboard</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-top">
+                <div class="footer-logo">Sharda<span style="color:#06B6D4;">Analytics</span></div>
+                <nav class="footer-nav">
+                    <a routerLink="/dashboard" class="footer-link hover-target">Dashboard</a>
+                    <a routerLink="/papers" class="footer-link hover-target">Papers</a>
+                    <a routerLink="/upload" class="footer-link hover-target">Upload</a>
+                    <a routerLink="/auth" class="footer-link hover-target">Sign In</a>
+                </nav>
+            </div>
+            <div class="footer-bottom">
+                &copy; 2026 Sharda University Research &amp; Development Cell. Crafted with precision.
+            </div>
+        </div>
+    </footer>
+</div>

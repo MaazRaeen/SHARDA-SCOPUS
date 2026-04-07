@@ -1,0 +1,110 @@
+<app-navbar [showBackButton]="true"></app-navbar>
+
+<div class="scopus-table-container">
+
+
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>📊 Scopus API Table</h1>
+      <p class="subtitle">Direct data from Scopus API</p>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-section" *ngIf="!isLoading && papers.length > 0">
+    <div class="stat-item">
+      <span class="stat-number">{{ papers.length }}</span>
+      <span class="stat-label">Papers Loaded</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-number">{{ totalResults }}</span>
+      <span class="stat-label">Total Available</span>
+    </div>
+    <button class="refresh-btn" (click)="refreshData()" [disabled]="isLoading">
+      🔄 Refresh Data
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Fetching papers from Scopus API...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="errorMessage && !isLoading" class="error-state">
+    <span class="error-icon">⚠️</span>
+    <p>{{ errorMessage }}</p>
+    <button class="retry-btn" (click)="refreshData()">Try Again</button>
+  </div>
+
+  <!-- Papers Table -->
+  <div *ngIf="!isLoading && papers.length > 0" class="table-container">
+    <table class="scopus-table">
+      <thead>
+        <tr>
+          <th class="title-col">Paper Title</th>
+          <th class="year-col">Year</th>
+          <th class="type-col">Type</th>
+          <th class="cited-col">Cited By</th>
+          <th class="quartile-col">Quartile</th>
+          <th class="doi-col">DOI</th>
+          <th class="link-col">Link</th>
+          <th class="authors-col">Authors</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let paper of papers" class="paper-row">
+          <td class="title-cell">
+            <div class="paper-title" title="{{ paper.paperTitle }}">
+              {{ paper.paperTitle || 'N/A' }}
+            </div>
+          </td>
+          <td class="year-cell">
+            <span class="year-badge">{{ paper.year || 'N/A' }}</span>
+          </td>
+          <td class="type-cell">
+            <span class="type-badge">{{ paper.paperType || 'N/A' }}</span>
+          </td>
+          <td class="cited-cell">
+            <span class="cited-badge">{{ paper.citedBy || 0 }}</span>
+          </td>
+          <td class="quartile-cell">
+            <span class="quartile-badge" [ngClass]="getQuartileClass(paper.quartile)">
+              {{ paper.quartile || '-' }}
+            </span>
+          </td>
+          <td class="doi-cell">
+            <span class="doi-text" *ngIf="paper.doi">{{ paper.doi }}</span>
+            <span *ngIf="!paper.doi" class="empty-text">-</span>
+          </td>
+          <td class="link-cell">
+            <a *ngIf="paper.link" [href]="paper.link" target="_blank" class="link-btn">🔗 View</a>
+            <span *ngIf="!paper.link" class="empty-text">-</span>
+          </td>
+          <td class="authors-cell">
+            <div class="authors-list">
+              <div *ngFor="let author of paper.authors; let last = last" class="author-item">
+                <span class="author-name">{{ formatAuthorName(author.authorName) }}</span>
+                <span *ngIf="author.department" class="author-dept">{{ author.department }}</span>
+                <span *ngIf="!author.department && !last" class="author-separator">,</span>
+                <span *ngIf="!author.department && last" class="author-dept-empty">-</span>
+                <span *ngIf="!last" class="author-separator">,</span>
+              </div>
+              <span *ngIf="paper.authors.length === 0" class="empty-text">-</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && papers.length === 0 && !errorMessage" class="empty-state">
+    <div class="empty-icon">📄</div>
+    <h3>No Papers Found</h3>
+    <p>No papers were returned from the Scopus API</p>
+    <button class="retry-btn" (click)="refreshData()">Try Again</button>
+  </div>
+</div>

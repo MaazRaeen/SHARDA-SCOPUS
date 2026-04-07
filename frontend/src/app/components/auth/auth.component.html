@@ -1,0 +1,147 @@
+<div class="auth-container">
+    <!-- Static Light Blobs -->
+    <div class="zenith-blobs">
+        <div class="blob blob-red"></div>
+        <div class="blob blob-indigo"></div>
+    </div>
+
+    <!-- Soft Floating Background Icons -->
+    <div class="zenith-particles">
+        <span class="material-icons particle p-1">school</span>
+        <span class="material-icons particle p-3">history_edu</span>
+        <span class="material-icons particle p-5">science</span>
+    </div>
+
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="brand-badge">
+                <span class="material-icons" style="font-size: 0.9rem;">stars</span>
+                Sharda Research Portal
+            </div>
+
+            <div class="app-icon">
+                <div class="icon-inner">
+                    <span class="material-icons">auto_stories</span>
+                </div>
+            </div>
+
+            <h1 class="logo-title">{{ isLogin ? 'Sign In' : 'Sign Up' }}</h1>
+            <p class="logo-subtitle">{{ isLogin ? 'Welcome back to Sharda University' : 'Create your research account
+                today' }}</p>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="auth-toggle">
+            <button class="toggle-btn" [class.active]="isLogin" (click)="toggleMode(true)">
+                <span class="material-icons">login</span> Login
+            </button>
+            <button class="toggle-btn" [class.active]="!isLogin" (click)="toggleMode(false)">
+                <span class="material-icons">person_add</span> Register
+            </button>
+        </div>
+
+        <form class="auth-form" (ngSubmit)="onSubmit()">
+            <!-- Name (Sign Up only) -->
+            <div class="form-group" *ngIf="!isLogin">
+                <label>Full Name</label>
+                <div class="input-container">
+                    <span class="material-icons input-icon">person</span>
+                    <input type="text" name="name" class="input-field" [(ngModel)]="authData.name"
+                        placeholder="Enter your name" required>
+                </div>
+            </div>
+
+            <!-- Role (Sign Up only) -->
+            <div class="role-selector" *ngIf="!isLogin">
+                <div class="role-grid">
+                    <div *ngFor="let role of roles" class="role-card" [class.selected]="authData.role === role.id"
+                        (click)="selectRole(role.id)">
+                        <div class="role-icon-box">
+                            <span class="material-icons">{{ role.icon }}</span>
+                        </div>
+                        <span class="role-name">{{ role.label }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact Conditonal Dropdowns -->
+            <div class="compact-grid" *ngIf="showDesignationPicker || showSchoolDeptPicker">
+                <div class="form-group" *ngIf="showDesignationPicker">
+                    <label>Designation</label>
+                    <div class="input-container">
+                        <span class="material-icons input-icon">work</span>
+                        <select name="designation" class="input-field" [(ngModel)]="authData.designation" required>
+                            <option value="" disabled selected>Select</option>
+                            <option *ngFor="let d of designations" [value]="d">{{ d }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group" *ngIf="showSchoolDeptPicker">
+                    <label>Department</label>
+                    <div class="input-container">
+                        <span class="material-icons input-icon">business</span>
+                        <select name="department" class="input-field" [(ngModel)]="authData.department" required>
+                            <option value="" disabled selected>Select</option>
+                            <option *ngFor="let d of departments" [value]="d">{{ d }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Google Scholar URL (Professor/Other only) -->
+            <div class="form-group scholar-field" *ngIf="showScholarField">
+                <label>
+                    <span class="material-icons"
+                        style="font-size:1rem;vertical-align:middle;margin-right:4px;">school</span>
+                    Google Scholar Profile URL
+                </label>
+                <div class="input-container">
+                    <span class="material-icons input-icon">link</span>
+                    <input type="url" name="scholarUrl" class="input-field" [(ngModel)]="authData.scholarUrl"
+                        placeholder="https://scholar.google.com/citations?user=XXXX">
+                </div>
+                <span class="scholar-hint">Optional · Used to fetch your lifetime publication stats</span>
+            </div>
+
+            <!-- Email & Password (Always) -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="input-container">
+                        <span class="material-icons input-icon">mail</span>
+                        <input type="email" name="email" class="input-field" [(ngModel)]="authData.email"
+                            placeholder="name@sharda.ac.in" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <div class="input-container">
+                        <span class="material-icons input-icon">lock</span>
+                        <input type="password" name="password" class="input-field" [(ngModel)]="authData.password"
+                            placeholder="••••••••" required>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Notification -->
+            <div class="feedback-msg error-msg" *ngIf="errorMessage">
+                <span class="material-icons">error_outline</span>
+                {{ errorMessage }}
+            </div>
+
+            <!-- Actions -->
+            <button type="submit" class="btn-submit" [disabled]="isLoading">
+                <span *ngIf="!isLoading">{{ isLogin ? 'Sign In' : 'Sign Up' }}</span>
+                <div class="loader" *ngIf="isLoading"></div>
+                <span class="material-icons" *ngIf="!isLoading">arrow_forward</span>
+            </button>
+
+            <p class="switch-mode">
+                {{ isLogin ? "No account?" : "Have an account?" }}
+                <a class="switch-link" (click)="toggleMode(!isLogin)">{{ isLogin ? 'Register' : 'Login' }}</a>
+            </p>
+        </form>
+    </div>
+</div>

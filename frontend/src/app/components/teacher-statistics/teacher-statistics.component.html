@@ -1,0 +1,244 @@
+<div class="page-wrapper">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="header-text">
+            <button class="back-btn" onclick="history.back()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                Back
+            </button>
+            <h1>Teacher Research Statistics</h1>
+            <p>Search for faculty members to explore their research impact and publication history.</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-section">
+        <div class="search-wrapper">
+            <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input class="search-input" type="text" [(ngModel)]="searchQuery" (ngModelChange)="onQueryChange()"
+                (keyup.enter)="search()" (focus)="onQueryChange()"
+                placeholder="Search by author name (e.g. Ashok Kumar)...">
+
+            <button class="search-btn" (click)="search()">Search</button>
+
+            <!-- Suggestions Dropdown -->
+            <div class="suggestions-dropdown" *ngIf="showSuggestions">
+                <div class="suggestion-item" *ngFor="let suggestion of suggestions"
+                    (click)="selectSuggestion(suggestion)">
+                    <div class="suggestion-avatar">{{ suggestion._id.charAt(0).toUpperCase() }}</div>
+                    <div class="suggestion-info">
+                        <div class="suggestion-name">{{ suggestion._id | authorName }}</div>
+                        <div class="suggestion-dept">{{ suggestion.department }}</div>
+                    </div>
+                    <div class="suggestion-meta">
+                        <span>{{ suggestion.paperCount }} papers</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-state">
+        <div class="spinner"></div>
+        <p>{{ loadingMessage }}</p>
+    </div>
+
+    <!-- Results Grid -->
+    <div *ngIf="!isLoading && authors.length > 0" class="results-grid">
+        <div class="author-card" *ngFor="let author of authors; trackBy: trackByAuthorId"
+            (click)="viewStats(author._id)">
+            <div class="card-top">
+                <div class="avatar">{{ author._id.charAt(0).toUpperCase() }}</div>
+                <div class="card-info">
+                    <h3 class="card-name" [title]="author._id">{{ author._id | authorName }}</h3>
+                    <p class="card-dept" [title]="author.department">{{ author.department || 'Department N/A' }}</p>
+                </div>
+            </div>
+            <div class="card-stats">
+                <div class="stat-item">
+                    <span class="stat-value">{{ author.paperCount }}</span>
+                    <span class="stat-label">Papers</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-value">{{ author.citationCount }}</span>
+                    <span class="stat-label">Citations</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoading && hasSearched && authors.length === 0" class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <h3>No authors found</h3>
+        <p>Try a different name or check the spelling.</p>
+    </div>
+
+</div>
+
+<!-- ── Detailed Stats Modal ── -->
+<div class="modal-overlay" *ngIf="selectedAuthor" (click)="closeStats()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+
+        <!-- Close -->
+        <button class="modal-close" (click)="closeStats()" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
+
+        <!-- Profile Header -->
+        <div class="profile-header">
+            <div class="profile-layout">
+                <div class="profile-identity">
+                    <div class="profile-avatar">{{ selectedAuthor.name.charAt(0).toUpperCase() }}</div>
+                    <div>
+                        <h2 class="profile-name">{{ selectedAuthor.name | authorName }}</h2>
+                        <p class="profile-dept">{{ selectedAuthor.department }}</p>
+                    </div>
+                </div>
+                <div class="profile-metrics">
+                    <div class="metric-pill">
+                        <span class="metric-value">{{ selectedAuthor.totalPapers }}</span>
+                        <span class="metric-label">Papers</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="metric-value">{{ selectedAuthor.totalCitations }}</span>
+                        <span class="metric-label">Citations</span>
+                    </div>
+                    <div class="metric-pill">
+                        <span class="metric-value">{{ selectedAuthor.hIndex }}</span>
+                        <span class="metric-label">H-Index</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="modal-body">
+            <div class="modal-left-col">
+
+                <!-- Quartile Distribution -->
+                <div class="quartile-card" *ngIf="selectedAuthor.quartiles">
+                    <p class="card-title" style="margin-bottom: 5px;">Journal Quality (Quartiles)</p>
+                    <div class="quartile-bar-wrapper">
+                        <!-- Q1 -->
+                        <div class="q-bar q1-bg"
+                            [style.width.%]="(selectedAuthor.quartiles.Q1 / selectedAuthor.totalPapers) * 100"
+                            *ngIf="selectedAuthor.quartiles.Q1 > 0" title="Q1: {{selectedAuthor.quartiles.Q1}} papers">
+                            <span *ngIf="(selectedAuthor.quartiles.Q1 / selectedAuthor.totalPapers) >= 0.06">Q1</span>
+                        </div>
+                        <!-- Q2 -->
+                        <div class="q-bar q2-bg"
+                            [style.width.%]="(selectedAuthor.quartiles.Q2 / selectedAuthor.totalPapers) * 100"
+                            *ngIf="selectedAuthor.quartiles.Q2 > 0" title="Q2: {{selectedAuthor.quartiles.Q2}} papers">
+                            <span *ngIf="(selectedAuthor.quartiles.Q2 / selectedAuthor.totalPapers) >= 0.06">Q2</span>
+                        </div>
+                        <!-- Q3 -->
+                        <div class="q-bar q3-bg"
+                            [style.width.%]="(selectedAuthor.quartiles.Q3 / selectedAuthor.totalPapers) * 100"
+                            *ngIf="selectedAuthor.quartiles.Q3 > 0" title="Q3: {{selectedAuthor.quartiles.Q3}} papers">
+                            <span *ngIf="(selectedAuthor.quartiles.Q3 / selectedAuthor.totalPapers) >= 0.06">Q3</span>
+                        </div>
+                        <!-- Q4 -->
+                        <div class="q-bar q4-bg"
+                            [style.width.%]="(selectedAuthor.quartiles.Q4 / selectedAuthor.totalPapers) * 100"
+                            *ngIf="selectedAuthor.quartiles.Q4 > 0" title="Q4: {{selectedAuthor.quartiles.Q4}} papers">
+                            <span *ngIf="(selectedAuthor.quartiles.Q4 / selectedAuthor.totalPapers) >= 0.06">Q4</span>
+                        </div>
+                        <!-- NA -->
+                        <div class="q-bar qna-bg"
+                            [style.width.%]="(selectedAuthor.quartiles.NA / selectedAuthor.totalPapers) * 100"
+                            *ngIf="selectedAuthor.quartiles.NA > 0"
+                            title="Unassigned: {{selectedAuthor.quartiles.NA}} papers">
+                            <span *ngIf="(selectedAuthor.quartiles.NA / selectedAuthor.totalPapers) >= 0.06">NA</span>
+                        </div>
+                    </div>
+                    <div class="quartile-legend">
+                        <span class="legend-item"><span class="legend-dot q1-bg"></span>Q1
+                            ({{selectedAuthor.quartiles.Q1}})</span>
+                        <span class="legend-item"><span class="legend-dot q2-bg"></span>Q2
+                            ({{selectedAuthor.quartiles.Q2}})</span>
+                        <span class="legend-item"><span class="legend-dot q3-bg"></span>Q3
+                            ({{selectedAuthor.quartiles.Q3}})</span>
+                        <span class="legend-item"><span class="legend-dot q4-bg"></span>Q4
+                            ({{selectedAuthor.quartiles.Q4}})</span>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="chart-card">
+                    <p class="card-title">Publication Growth</p>
+                    <div class="chart-area">
+                        <canvas id="yearChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Synergy Map -->
+                <div class="graph-card">
+                    <p class="card-title">Research Synergy Map</p>
+                    <p class="card-subtitle">Top internal Sharda collaborators</p>
+                    <div id="synergyGraph" class="graph-area"></div>
+                </div>
+            </div>
+
+            <!-- Papers List -->
+            <div class="modal-right-col">
+                <div class="papers-card">
+                    <div class="papers-card-header">
+                        <p class="card-title" *ngIf="!selectedYear">All Papers ({{ selectedAuthor.papers.length }})</p>
+                        <p class="card-title" *ngIf="selectedYear">
+                            {{ selectedYear }} Papers ({{ filteredPapersByYear.length }})
+                            <button class="ts-clear-year" (click)="selectYear(null)">
+                                <span class="material-icons" style="font-size: 14px;">close</span> Show All
+                            </button>
+                        </p>
+                    </div>
+
+                    <!-- Paper Type Distribution -->
+                    <div class="ts-type-chips" *ngIf="paperTypeDistribution.length > 1">
+                        <div class="ts-type-chip" *ngFor="let pt of paperTypeDistribution; let i = index"
+                            [class.active]="activeTeacherPaperType === pt.type"
+                            (click)="selectTeacherPaperType(pt.type)">
+                            <span class="ts-chip-dot"
+                                [style.background]="'hsl(' + (i * 47 + 210) + ', 60%, 50%)'"></span>
+                            {{ pt.type }} <span class="ts-chip-count">{{ pt.count }}</span>
+                        </div>
+                    </div>
+
+                    <div class="papers-scroll">
+                        <div class="paper-item" *ngFor="let paper of filteredPapersByYear; trackBy: trackByPaperTitle">
+                            <div class="paper-meta-row">
+                                <span class="year-badge">{{ (paper.publicationDate | date:'mediumDate') || paper.year ||
+                                    'N/A' }}</span>
+                                <span class="paper-type-tag" *ngIf="paper.paperType">{{ paper.paperType }}</span>
+                                <span class="cite-count">{{ paper.citedBy || 0 }} citations</span>
+                            </div>
+                            <p class="paper-title" [title]="paper.paperTitle">{{ paper.paperTitle }}</p>
+                            <p class="paper-source">{{ paper.sourcePaper || paper.publisher }}</p>
+                            <a *ngIf="paper.link" [href]="paper.link" target="_blank" class="paper-link">View Paper
+                                →</a>
+                        </div>
+                        <div class="empty-papers" *ngIf="filteredPapersByYear.length === 0">
+                            No papers found for this filter
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

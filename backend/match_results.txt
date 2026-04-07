@@ -1,0 +1,92 @@
+[dotenv@17.2.3] injecting env (5) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+Fetching teachers...
+Fetching Scopus IDs from ShardaAuthors...
+Prepared 4438 unique Sharda Scopus profiles for matching.
+
+=======================================================
+Total teachers found: 2054
+Teachers successfully matched with a scopusId: 1583
+Teachers with no match found: 471
+=======================================================
+
+--- 10 SAMPLE MATCHES (Score > 85%) ---
+
+Match #1
+Teacher DB Name:        SIDDHARTH RAWAT
+Parsed Scopus Style:    Rawat S.
+Cleaned Scopus Author:  Rawat S.
+Original Scopus Author: Center for Solar Cells and Renewable Energy Rawat S.
+Scopus ID Assigned:     58349623400
+Similarity Score:       100.0%
+
+Match #2
+Teacher DB Name:        DHIRJA GOEL
+Parsed Scopus Style:    Goel D.
+Cleaned Scopus Author:  Goel D.
+Original Scopus Author: Department of Pediatric and Preventive Dentistry Goel D.
+Scopus ID Assigned:     55313916100
+Similarity Score:       100.0%
+
+Match #3
+Teacher DB Name:        DEEPAK BHARGAVA
+Parsed Scopus Style:    Bhargava D.
+Cleaned Scopus Author:  Bhargava D.
+Original Scopus Author: Department of Oral Pathology and Microbiology Bhargava D.
+Scopus ID Assigned:     52163254600
+Similarity Score:       100.0%
+
+Match #4
+Teacher DB Name:        ALANKRITA CHAUDHARY
+Parsed Scopus Style:    Chaudhary A.
+Cleaned Scopus Author:  Chaudhary A.
+Original Scopus Author: School of Engineering & Technology Chaudhary A.
+Scopus ID Assigned:     58769728000
+Similarity Score:       100.0%
+
+Match #5
+Teacher DB Name:        ANURAG HASTI
+Parsed Scopus Style:    Hasti A.
+Cleaned Scopus Author:  Hasti A.
+Original Scopus Author: School of Dental Sciences Hasti A.
+Scopus ID Assigned:     16480347600
+Similarity Score:       100.0%
+
+Match #6
+Teacher DB Name:        ASHISH CHOUDHARY
+Parsed Scopus Style:    Choudhary A.
+Cleaned Scopus Author:  Choudhary A.
+Original Scopus Author: Department of Computer Science and Engineering Choudhary A.
+Scopus ID Assigned:     57169721700
+Similarity Score:       100.0%
+
+Match #7
+Teacher DB Name:        DINESH KUMAR BAGGA
+Parsed Scopus Style:    Bagga D.K.
+Cleaned Scopus Author:  Bagga D.K.
+Original Scopus Author: Department of Orthodontics & Dentofacial Orthopaedics Bagga D.K.
+Scopus ID Assigned:     56029208600
+Similarity Score:       100.0%
+
+Match #8
+Teacher DB Name:        EKTA CHOUDHARY
+Parsed Scopus Style:    Choudhary E.
+Cleaned Scopus Author:  Choudhary E.
+Original Scopus Author: Department of Conservative Dentistry and Endodontics Choudhary E.
+Scopus ID Assigned:     57203338188
+Similarity Score:       100.0%
+
+Match #9
+Teacher DB Name:        HEMANT SAWHNEY
+Parsed Scopus Style:    Sawhney H.
+Cleaned Scopus Author:  Sawhney H.
+Original Scopus Author: Department of Oral Medicine and Radiology Sawhney H.
+Scopus ID Assigned:     54956271500
+Similarity Score:       100.0%
+
+Match #10
+Teacher DB Name:        HIMANI SHARMA
+Parsed Scopus Style:    Sharma H.
+Cleaned Scopus Author:  Sharma H.
+Original Scopus Author: Department of Chemistry and Biochemistry Sharma H.
+Scopus ID Assigned:     57704849100
+Similarity Score:       100.0%

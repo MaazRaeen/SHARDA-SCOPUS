@@ -1,0 +1,546 @@
+<app-navbar [showBackButton]="true"></app-navbar>
+
+<div class="paper-list-container">
+  <!-- Header -->
+  <header class="page-header">
+    <div class="header-content">
+      <h1>
+        <span class="material-icons" style="font-size: 2.5rem; color: #6366f1;">auto_stories</span>
+        Sharda University Papers
+      </h1>
+      <p class="subtitle">Next-Generation Research Analytics & Repository</p>
+    </div>
+
+    <!-- Stats Cardified -->
+    <div class="stats">
+      <div class="stat-item">
+        <span class="stat-label">Total Papers</span>
+        <span class="stat-number">{{ totalPapers }}</span>
+        <div class="stat-trend">
+          <span class="material-icons">article</span>
+          <span>Verified Repository</span>
+        </div>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Active Authors</span>
+        <span class="stat-number">{{ totalAuthorCount }}</span>
+        <div class="stat-trend">
+          <span class="material-icons">groups</span>
+          <span>Sharda Faculty</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Premium Toolbox Section -->
+  <div class="toolbox-section">
+    <div class="toolbox-panel glass-panel">
+      <!-- Toolbox Row: Management (Left) + Discovery (Right) -->
+      <div class="toolbox-row">
+        <!-- Management Actions Group -->
+        <div class="management-group">
+          <a routerLink="/scopus-fetch" class="action-btn scopus-api-btn">
+            <span class="material-icons">cloud_download</span> Scopus API Fetch
+          </a>
+          <button class="action-btn" (click)="goToUpload()">
+            <span class="material-icons">upload_file</span> Upload CSV
+          </button>
+          <button class="action-btn" (click)="downloadCSV()" [disabled]="totalPapers === 0">
+            <span class="material-icons">file_download</span> Export Data
+          </button>
+          <button class="action-btn" (click)="clearAll()" [disabled]="totalPapers === 0">
+            <span class="material-icons">delete_sweep</span> Clear All
+          </button>
+          <a routerLink="/teacher-upload" class="action-btn">
+            <span class="material-icons">person_add</span> Update Faculty
+          </a>
+          <a routerLink="/teacher-statistics" class="action-btn stats-btn"
+            style="background: #0f172a; color: white; border: none;">
+            <span class="material-icons">insights</span> Analytics
+          </a>
+        </div>
+
+        <!-- Discovery Controls Group -->
+        <div class="discovery-group">
+          <!-- Search Toggle -->
+          <button class="filter-toggle-btn search-trigger" (click)="toggleSearch()" [class.active]="showSearch">
+            <span class="material-icons">search</span> Search
+          </button>
+
+          <!-- Filter Toggle Button -->
+          <button class="filter-toggle-btn" (click)="toggleFilters()" [class.active]="showFilters">
+            <span class="material-icons">tune</span> Advanced Filters
+          </button>
+
+          <!-- Clear Button (Always visible if filters active) -->
+          <button class="icon-btn clear-btn-icon" (click)="clearFilters()" *ngIf="hasActiveFilters()"
+            title="Clear Filters">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search Modal Overlay -->
+  <div class="modal-overlay" *ngIf="showSearch" (click)="toggleSearch()">
+    <div class="modal-content search-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Search Papers</h3>
+        <button class="close-modal" (click)="toggleSearch()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="search-input-group">
+          <svg class="modal-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search" [(ngModel)]="searchQuery" (ngModelChange)="onSearchInput()"
+            (keyup.enter)="toggleSearch()" placeholder="Search papers, authors, DOIs..."
+            class="premium-input modal-input" />
+        </div>
+        <p class="search-hint">Search across titles, abstract keywords, and all authors.</p>
+        <div class="modal-footer search-footer">
+          <button class="apply-btn" (click)="toggleSearch()">
+            <span class="btn-text">Enter</span>
+            <span class="btn-shortcut">⏎</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filter Modal Overlay -->
+  <div class="modal-overlay" *ngIf="showFilters" (click)="toggleFilters()">
+    <div class="modal-content filter-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Filter Parameters</h3>
+        <button class="close-modal" (click)="toggleFilters()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="parameters-vertical-grid">
+          <!-- Department -->
+          <div class="filter-group">
+            <label for="department">Department</label>
+            <div class="filter-wrapper">
+              <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 21h18M5 21V7l8-4 8 4v14M8 21v-4h8v4" />
+              </svg>
+              <select id="department" [(ngModel)]="selectedDepartment" (change)="onSchoolSelect()"
+                class="premium-select department-select">
+                <option value="All">All Departments</option>
+                <option *ngFor="let dept of shardaDepartments" [value]="dept">{{ dept | titlecase }}</option>
+              </select>
+              <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Year -->
+          <div class="filter-group">
+            <label for="year">Publication Year</label>
+            <div class="filter-wrapper">
+              <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <select id="year" [(ngModel)]="selectedYear" (change)="onFilterChange()" class="premium-select">
+                <option value="">All Years</option>
+                <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+              </select>
+              <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Type -->
+          <div class="filter-group">
+            <label for="paperType">Paper Type</label>
+            <div class="filter-wrapper">
+              <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <select id="paperType" [(ngModel)]="selectedPaperType" (change)="onFilterChange()" class="premium-select">
+                <option value="All">All Types</option>
+                <option *ngFor="let type of paperTypes" [value]="type">{{ type }}</option>
+              </select>
+              <svg class="chevron-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Publication Date -->
+          <div class="filter-group">
+            <label for="publicationDate">Custom Date (Online/Print)</label>
+            <div class="filter-wrapper">
+              <svg class="input-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input type="date" id="publicationDate" [(ngModel)]="selectedDate" (change)="onLocalFilterChange()"
+                class="premium-select date-input">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="apply-btn" (click)="toggleFilters()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <!-- Active Filters Summary -->
+  <div class="active-filters" *ngIf="hasActiveFilters()">
+    <span class="filter-label">Active filters:</span>
+    <span class="filter-tag" *ngIf="selectedDepartment && selectedDepartment !== 'All'">
+      Dept: {{ selectedDepartment | titlecase }}
+    </span>
+    <span class="filter-tag" *ngIf="selectedYear">
+      Year: {{ selectedYear }}
+    </span>
+    <span class="filter-tag" *ngIf="selectedPaperType !== 'All'">
+      Type: {{ selectedPaperType }}
+    </span>
+    <span class="filter-tag" *ngIf="selectedDate">
+      Date: {{ selectedDate }}
+    </span>
+    <span class="filter-tag" *ngIf="searchQuery">
+      Search: "{{ searchQuery }}"
+    </span>
+  </div>
+
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading papers...</p>
+  </div>
+
+  <!-- Error State -->
+  <div *ngIf="errorMessage && !isLoading" class="error-state">
+    <span class="error-icon">⚠️</span>
+    <p>{{ errorMessage }}</p>
+    <button class="retry-btn" (click)="loadPapers()">Try Again</button>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!isLoading && !errorMessage && totalPapers === 0" class="empty-state">
+    <div class="empty-icon">📄</div>
+    <h3>No Papers Found</h3>
+    <p>Upload a Scopus CSV file to extract Sharda University papers</p>
+    <button class="action-btn upload-btn" (click)="goToUpload()">
+      📤 Upload CSV
+    </button>
+  </div>
+
+  <!-- Top Controls & Pagination -->
+  <div class="top-controls-container" *ngIf="!isLoading">
+    <div class="showing-info">
+      {{ showingRange }}
+    </div>
+
+    <!-- Premium Pagination (Top) -->
+    <div class="pagination-wrapper" *ngIf="totalPapers > pageSize">
+      <div class="pagination-controls-premium">
+        <button [disabled]="currentPage === 1" (click)="goToPage(1)" class="page-btn-premium tooltip"
+          title="First Page">
+          «
+        </button>
+        <button [disabled]="currentPage === 1" (click)="prevPage()" class="page-btn-premium">
+          Previous
+        </button>
+
+        <div class="page-numbers">
+          <ng-container *ngFor="let button of pageButtons">
+            <button *ngIf="button !== '...'" (click)="goToPage(button)" [class.active]="button === currentPage"
+              class="page-num-btn">
+              {{ button }}
+            </button>
+            <span *ngIf="button === '...'" class="pagination-dots">...</span>
+          </ng-container>
+        </div>
+
+        <button [disabled]="currentPage === totalPages" (click)="nextPage()" class="page-btn-premium">
+          Next
+        </button>
+        <button [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)" class="page-btn-premium tooltip"
+          title="Last Page">
+          »
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Papers Table -->
+  <div *ngIf="!isLoading && paginatedPapers.length > 0" class="table-container">
+    <table class="papers-table">
+      <thead>
+        <tr>
+          <th class="title-col">Paper Title</th>
+          <th class="year-col">Year</th>
+          <th class="type-col">Paper Type</th>
+          <th class="cited-col">Cited By</th>
+          <th class="quartile-col">Quartile</th>
+          <th class="source-col">Source</th>
+          <th class="author-col">Author 1</th>
+          <th class="author-col">Author 2</th>
+          <th class="author-col">Author 3</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let paper of paginatedPapers; trackBy: trackByPaperId" class="paper-row"
+          (click)="openPaperDetails(paper)">
+          <td class="title-cell">
+            <div class="paper-title" title="{{ paper.paperTitle }}">
+              {{ paper.paperTitle || 'N/A' }}
+            </div>
+          </td>
+          <td class="year-cell">
+            <span class="year-badge">{{ paper.year || 'N/A' }}</span>
+          </td>
+          <td class="type-cell">
+            <span class="type-badge">{{ paper.paperType || 'N/A' }}</span>
+          </td>
+          <td class="cited-cell">
+            <span class="cited-badge">{{ paper.citedBy || 0 }}</span>
+          </td>
+          <td class="quartile-cell">
+            <span class="quartile-badge" [ngClass]="getQuartileClass(paper.quartile)">
+              {{ paper.quartile || '-' }}
+            </span>
+          </td>
+          <td class="source-cell">
+            <div class="source-name" title="{{ paper.sourcePaper || paper.publisher }}">
+              {{ paper.sourcePaper || paper.publisher || '-' }}
+            </div>
+          </td>
+          <td class="author-cell">
+            <div class="author-with-dept" *ngIf="paper.author1?.authorName">
+              <div class="author-name">{{ paper.author1?.authorName | authorName }}</div>
+              <div class="department-badge" *ngIf="paper.author1?.department">
+                {{ paper.author1?.department }}
+              </div>
+            </div>
+            <span *ngIf="!paper.author1?.authorName" class="empty-text">-</span>
+          </td>
+          <td class="author-cell">
+            <div class="author-with-dept" *ngIf="paper.author2?.authorName">
+              <div class="author-name">{{ paper.author2?.authorName | authorName }}</div>
+              <div class="department-badge" *ngIf="paper.author2?.department">
+                {{ paper.author2?.department }}
+              </div>
+            </div>
+            <span *ngIf="!paper.author2?.authorName" class="empty-text">-</span>
+          </td>
+          <td class="author-cell">
+            <div class="author-with-dept" *ngIf="paper.author3?.authorName">
+              <div class="author-name">{{ paper.author3?.authorName | authorName }}</div>
+              <div class="department-badge" *ngIf="paper.author3?.department">
+                {{ paper.author3?.department }}
+              </div>
+            </div>
+            <span *ngIf="!paper.author3?.authorName" class="empty-text">-</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Premium Pagination (Bottom) -->
+  <div class="pagination-container-bottom" *ngIf="!isLoading && totalPapers > pageSize">
+    <div class="pagination-controls-premium">
+      <button [disabled]="currentPage === 1" (click)="goToPage(1)" class="page-btn-premium" title="First Page">
+        First
+      </button>
+      <button [disabled]="currentPage === 1" (click)="prevPage()" class="page-btn-premium">
+        Previous
+      </button>
+
+      <div class="page-numbers">
+        <ng-container *ngFor="let button of pageButtons">
+          <button *ngIf="button !== '...'" (click)="goToPage(button)" [class.active]="button === currentPage"
+            class="page-num-btn">
+            {{ button }}
+          </button>
+          <span *ngIf="button === '...'" class="pagination-dots">...</span>
+        </ng-container>
+      </div>
+
+      <button [disabled]="currentPage === totalPages" (click)="nextPage()" class="page-btn-premium">
+        Next
+      </button>
+      <button [disabled]="currentPage === totalPages" (click)="goToPage(totalPages)" class="page-btn-premium"
+        title="Last Page">
+        Last
+      </button>
+    </div>
+  </div>
+
+  <!-- Paper Details Popup -->
+  <div class="search-popup-overlay" *ngIf="showPaperDetails" (click)="closePaperDetails()">
+    <div class="search-popup" (click)="$event.stopPropagation()">
+      <div class="popup-header">
+        <h3>Paper Details</h3>
+        <button class="close-btn" (click)="closePaperDetails()">×</button>
+      </div>
+      <div class="popup-content" *ngIf="selectedPaper">
+        <table class="result-table">
+          <tr>
+            <td class="label">Paper Title</td>
+            <td class="value title-value">
+              <a *ngIf="selectedPaper.link" [href]="selectedPaper.link" target="_blank" class="paper-link">
+                {{ selectedPaper.paperTitle || 'N/A' }}
+              </a>
+              <span *ngIf="!selectedPaper.link">{{ selectedPaper.paperTitle || 'N/A' }}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="label">Year</td>
+            <td class="value">
+              <span class="year-badge-sm">{{ selectedPaper?.year || 'N/A' }}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="label">Paper Type</td>
+            <td class="value">
+              <span class="type-badge-sm">{{ selectedPaper?.paperType || 'N/A' }}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="label">Cited By</td>
+            <td class="value">
+              <span class="cited-badge-sm">{{ selectedPaper?.citedBy || 0 }}</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="label">Quartile</td>
+            <td class="value">
+              <span class="quartile-badge" [ngClass]="getQuartileClass(selectedPaper?.quartile)">
+                {{ selectedPaper?.quartile || '-' }}
+              </span>
+            </td>
+          </tr>
+          <tr *ngIf="selectedPaper?.link">
+            <td class="label">Link</td>
+            <td class="value">
+              <a [href]="selectedPaper?.link" target="_blank" class="paper-link">{{ selectedPaper?.link }}</a>
+            </td>
+          </tr>
+          <tr>
+            <td class="label">Source</td>
+            <td class="value source-value">{{ selectedPaper?.sourcePaper || selectedPaper?.publisher || '-' }}</td>
+          </tr>
+          <tr>
+            <td class="label">Publisher</td>
+            <td class="value">{{ selectedPaper?.publisher || '-' }}</td>
+          </tr>
+          <tr *ngIf="selectedPaper?.doi">
+            <td class="label">DOI</td>
+            <td class="value">{{ selectedPaper?.doi }}</td>
+          </tr>
+          <tr *ngIf="selectedPaper?.publicationDate">
+            <td class="label">Date</td>
+            <td class="value">
+              <span class="year-badge-sm">{{ selectedPaper?.publicationDate | date:'mediumDate' }}</span>
+            </td>
+          </tr>
+          <ng-container *ngIf="selectedPaper.authors && selectedPaper.authors.length > 0">
+            <tr *ngFor="let author of selectedPaper.authors; let i = index">
+              <td class="label">Author {{ i + 1 }}</td>
+              <td class="value">
+                <div class="author-details">
+                  <span class="author-name" *ngIf="author.authorName">{{ author.authorName | authorName }}</span>
+                  <span class="dept-badge" *ngIf="author.department">{{ author.department }}</span>
+                </div>
+                <span *ngIf="!author.authorName" class="empty-text">No author information</span>
+              </td>
+            </tr>
+          </ng-container>
+
+          <!-- Fallback for legacy data without authors array (shouldn't happen with new backend) -->
+          <ng-container *ngIf="!selectedPaper.authors || selectedPaper.authors.length === 0">
+            <tr>
+              <td class="label">Author 1</td>
+              <td class="value">
+                <div class="author-details" *ngIf="selectedPaper.author1?.authorName">
+                  <span class="author-name">{{ selectedPaper.author1?.authorName | authorName }}</span>
+                  <span class="dept-badge" *ngIf="selectedPaper.author1?.department">{{
+                    selectedPaper.author1?.department }}</span>
+                </div>
+                <span *ngIf="!selectedPaper.author1?.authorName" class="empty-text">No author information</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="label">Author 2</td>
+              <td class="value">
+                <div class="author-details" *ngIf="selectedPaper.author2?.authorName">
+                  <span class="author-name">{{ selectedPaper.author2?.authorName | authorName }}</span>
+                  <span class="dept-badge" *ngIf="selectedPaper.author2?.department">{{
+                    selectedPaper.author2?.department }}</span>
+                </div>
+                <span *ngIf="!selectedPaper.author2?.authorName" class="empty-text">No author information</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="label">Author 3</td>
+              <td class="value">
+                <div class="author-details" *ngIf="selectedPaper.author3?.authorName">
+                  <span class="author-name">{{ selectedPaper.author3?.authorName | authorName }}</span>
+                  <span class="dept-badge" *ngIf="selectedPaper.author3?.department">{{
+                    selectedPaper.author3?.department }}</span>
+                </div>
+                <span *ngIf="!selectedPaper.author3?.authorName" class="empty-text">No author information</span>
+              </td>
+            </tr>
+          </ng-container>
+        </table>
+      </div>
+      <div class="popup-footer">
+        <button class="view-all-btn" (click)="closePaperDetails()">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Navigation -->
+  <footer class="page-footer">
+    <a routerLink="/upload" class="back-link">
+      ← Back to Upload
+    </a>
+    <div class="footer-links">
+      <a routerLink="/scopus-fetch" class="back-link">
+        🔍 Scopus API Fetch
+      </a>
+      <a routerLink="/scopus-table" class="back-link">
+        📊 Scopus API Table
+      </a>
+    </div>
+  </footer>
+</div>
