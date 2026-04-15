@@ -1,12 +1,19 @@
 /**
- * Map 3,407 Scopus authors to Sharda's 25 canonical departments
- * and sync to Supabase.
+ * Final sync: Map 3,407 authors + API paper counts to 25 departments in Supabase.
+ * Paper counts come from Scopus API SUBJAREA queries.
+ * If a paper belongs to multiple departments, it counts in all of them.
  */
 const fs = require('fs');
+const axios = require('axios');
 const supabase = require('./config/db_supabase');
 require('dotenv').config();
 
-// ---- 25 Canonical Sharda Departments ----
+const API_KEY = process.env.SCOPUS_API_KEY;
+const HEADERS = { 'X-ELS-APIKey': API_KEY, 'Accept': 'application/json' };
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ---- 25 Canonical Departments ----
 const canonicalDepts = [
     "Department of Dental Science",
     "Department of Medical Sciences",
@@ -35,8 +42,40 @@ const canonicalDepts = [
     "Department of Law"
 ];
 
-// ---- Mapping: Scopus Subject Area → Sharda Department ----
-const subjectToDept = {
+// ---- Scopus Subject Area → Department mapping ----
+// Multiple subject codes can map to the same department (papers merge)
+const subjectToDeptMapping = [
+    { code: "COMP", dept: "Department of Computer Science & Engineering" },
+    { code: "MEDI", dept: "Department of Medical Sciences" },
+    { code: "ENGI", dept: "Department of Mechanical Engineering" },
+    { code: "MATE", dept: "Department of Physics" },
+    { code: "PHYS", dept: "Department of Physics" },
+    { code: "BIOC", dept: "Department of Biotechnology" },
+    { code: "MATH", dept: "Department of Mathematics" },
+    { code: "CHEM", dept: "Department of Chemistry and Biochemistry" },
+    { code: "PHAR", dept: "Department of Pharmacy" },
+    { code: "ENVI", dept: "Department of Environmental Science" },
+    { code: "AGRI", dept: "Department of Agricultural Science" },
+    { code: "SOCI", dept: "Department of Humanities & Social Sciences" },
+    { code: "ENER", dept: "Department of Electrical Electronics & Communication Engineering" },
+    { code: "DENT", dept: "Department of Dental Science" },
+    { code: "BUSI", dept: "Department of Business and Commerce" },
+    { code: "DECI", dept: "Department of Management" },
+    { code: "EART", dept: "Department of Environmental Science" },
+    { code: "CENG", dept: "Department of Civil Engineering" },
+    { code: "IMMU", dept: "Department of Life Sciences" },
+    { code: "ECON", dept: "Department of Business and Commerce" },
+    { code: "MULT", dept: "Department of Art and Science" },
+    { code: "ARTS", dept: "Department of Humanities & Social Sciences" },
+    { code: "HEAL", dept: "Department of Allied Health Science" },
+    { code: "NURS", dept: "Department of Nursing Sciences" },
+    { code: "NEUR", dept: "Department of Medical Sciences" },
+    { code: "PSYC", dept: "Department of Education" },
+    { code: "VETE", dept: "Department of Agricultural Science" }
+];
+
+// Author subject area text → Department (for author mapping)
+const authorSubjectToDept = {
     "Computer Science (all)": "Department of Computer Science & Engineering",
     "Medicine (all)": "Department of Medical Sciences",
     "Engineering (all)": "Department of Mechanical Engineering",
@@ -65,59 +104,74 @@ const subjectToDept = {
     "Earth and Planetary Sciences (all)": "Department of Environmental Science"
 };
 
-function mapToDepartment(subjectArea) {
-    if (!subjectArea) return "NA";
-    return subjectToDept[subjectArea] || "NA";
+// For departments with multiple subject codes, we need unique paper count.
+// Use combined SUBJAREA query: SUBJAREA(CODE1) OR SUBJAREA(CODE2)
+// This way Scopus deduplicates papers that belong to both codes.
+const deptToSubjectCodes = {};
+subjectToDeptMapping.forEach(({ code, dept }) => {
+    if (!deptToSubjectCodes[dept]) deptToSubjectCodes[dept] = [];
+    deptToSubjectCodes[dept].push(code);
+});
+
+async function fetchPaperCount(dept, codes) {
+    const subjareaQuery = codes.map(c => `SUBJAREA(${c})`).join(' OR ');
+    const fullQuery = `AF-ID(60108680) AND (${subjareaQuery})`;
+    const url = `https://api.elsevier.com/content/search/scopus?query=${encodeURIComponent(fullQuery)}&count=1`;
+    
+    try {
+        const res = await axios.get(url, { headers: HEADERS, timeout: 30000 });
+        return parseInt(res.data['search-results']['opensearch:totalResults'] || '0');
+    } catch (err) {
+        console.log(`  ⚠️  Error for ${dept}: ${err.response?.status || err.message}`);
+        return 0;
+    }
 }
 
 async function run() {
     console.log('\n====================================================');
-    console.log('  Mapping Authors to Sharda Departments & Syncing');
+    console.log('  Mapping Papers & Authors to Departments');  
+    console.log('  (Fetching real counts from Scopus API)');
     console.log('====================================================\n');
 
-    // Load authors
-    const authors = JSON.parse(fs.readFileSync('./sharda_authors_by_id.json', 'utf-8'));
-    console.log(`📂 Loaded ${authors.length} authors\n`);
-
-    // Map each author to a department
-    const mappedAuthors = authors.map(a => ({
-        ...a,
-        department: mapToDepartment(a.topSubjectArea)
-    }));
-
-    // Show mapping stats
-    const deptCounts = {};
-    mappedAuthors.forEach(a => {
-        deptCounts[a.department] = (deptCounts[a.department] || 0) + 1;
-    });
-
-    console.log('📊 Department Mapping Results:');
-    console.log('-'.repeat(60));
-    let total = 0;
-    Object.entries(deptCounts)
-        .sort((a, b) => b[1] - a[1])
-        .forEach(([dept, count]) => {
-            console.log(`  ${count.toString().padStart(4)} | ${dept}`);
-            total += count;
-        });
-    console.log('-'.repeat(60));
-    console.log(`  ${total.toString().padStart(4)} | TOTAL`);
-    console.log(`  Departments used: ${Object.keys(deptCounts).length}`);
-
-    // -------------------------------------------------------
-    // STEP 1: Clear and re-insert department_authors
-    // -------------------------------------------------------
-    console.log('\n--- Step 1: Syncing department_authors ---');
-
-    // Clear existing data
-    const { error: delErr } = await supabase.from('department_authors').delete().neq('id', 0);
-    if (delErr) {
-        console.log('  Delete error:', delErr.message);
-        // Try alternative
-        await supabase.from('department_authors').delete().gte('id', 0);
+    // ---- Step 1: Fetch unique paper counts per department from API ----
+    console.log('--- Step 1: Fetching paper counts from Scopus API ---');
+    
+    const deptPaperCounts = {};
+    
+    for (const [dept, codes] of Object.entries(deptToSubjectCodes)) {
+        const count = await fetchPaperCount(dept, codes);
+        deptPaperCounts[dept] = count;
+        console.log(`  ${count.toString().padStart(5)} papers | ${dept} (${codes.join(', ')})`);
+        await sleep(200);
     }
 
-    // Insert in batches
+    // Get total unique papers
+    const totalUrl = `https://api.elsevier.com/content/search/scopus?query=${encodeURIComponent('AF-ID(60108680)')}&count=1`;
+    const totalRes = await axios.get(totalUrl, { headers: HEADERS });
+    const totalPapers = parseInt(totalRes.data['search-results']['opensearch:totalResults']);
+    console.log(`\n  Total unique Sharda papers: ${totalPapers}`);
+    console.log(`  Quota remaining: ${totalRes.headers['x-ratelimit-remaining']}\n`);
+
+    // ---- Step 2: Map 3,407 authors to departments ----
+    console.log('--- Step 2: Mapping authors to departments ---');
+    const authors = JSON.parse(fs.readFileSync('./sharda_authors_by_id.json', 'utf-8'));
+    
+    const mappedAuthors = authors.map(a => ({
+        ...a,
+        department: authorSubjectToDept[a.topSubjectArea] || 'NA'
+    }));
+
+    // Count authors per department
+    const deptAuthorCounts = {};
+    mappedAuthors.forEach(a => {
+        deptAuthorCounts[a.department] = (deptAuthorCounts[a.department] || 0) + 1;
+    });
+    console.log(`  ✅ ${authors.length} authors mapped\n`);
+
+    // ---- Step 3: Sync department_authors to Supabase ----
+    console.log('--- Step 3: Syncing department_authors ---');
+    await supabase.from('department_authors').delete().neq('id', 0);
+
     const BATCH = 500;
     let inserted = 0;
     for (let i = 0; i < mappedAuthors.length; i += BATCH) {
@@ -128,84 +182,68 @@ async function run() {
             paper_count: a.documentCount,
             last_updated: new Date().toISOString()
         }));
-
         const { error } = await supabase.from('department_authors').insert(batch);
-        if (error) {
-            console.log(`  Insert error at ${i}:`, error.message);
-            continue;
-        }
+        if (error) { console.log(`  Error at ${i}:`, error.message); continue; }
         inserted += batch.length;
         process.stdout.write(`\r  Inserted ${inserted}/${mappedAuthors.length}`);
     }
-    console.log(`\n  ✅ department_authors: ${inserted} rows`);
+    console.log(`\n  ✅ department_authors: ${inserted} rows\n`);
 
-    // -------------------------------------------------------
-    // STEP 2: Rebuild department_api_stats
-    // -------------------------------------------------------
-    console.log('\n--- Step 2: Rebuilding department_api_stats ---');
-
-    // Clear old stats
+    // ---- Step 4: Rebuild department_api_stats with API paper counts ----
+    console.log('--- Step 4: Rebuilding department_api_stats ---');
     await supabase.from('department_api_stats').delete().neq('id', 0);
 
-    // Aggregate
-    const deptAgg = {};
-    mappedAuthors.forEach(a => {
-        const dept = a.department;
-        if (!deptAgg[dept]) {
-            deptAgg[dept] = { authors: [], totalPapers: 0 };
-        }
-        deptAgg[dept].authors.push(a);
-        deptAgg[dept].totalPapers += a.documentCount;
-    });
+    const allDepts = [...canonicalDepts, 'NA'];
+    const statsRows = allDepts.map(dept => {
+        const authorCount = deptAuthorCounts[dept] || 0;
+        const paperCount = deptPaperCounts[dept] || 0;
 
-    const statsRows = Object.entries(deptAgg).map(([dept, data]) => {
-        const topAuthor = data.authors.sort((a, b) => b.documentCount - a.documentCount)[0];
+        // Find top author in this department
+        const deptAuthors = mappedAuthors
+            .filter(a => a.department === dept)
+            .sort((a, b) => b.documentCount - a.documentCount);
+        const topAuthor = deptAuthors[0];
+
         return {
             department: dept,
-            author_count: data.authors.length,
-            total_papers: data.totalPapers,
+            author_count: authorCount,
+            total_papers: paperCount,
             top_author_name: topAuthor?.fullName || 'N/A',
             top_author_papers: topAuthor?.documentCount || 0,
             last_updated: new Date().toISOString()
         };
-    });
+    }).filter(s => s.author_count > 0 || s.total_papers > 0);
 
-    const { error: statsErr } = await supabase.from('department_api_stats').upsert(statsRows, { onConflict: 'department' });
+    const { error: statsErr } = await supabase.from('department_api_stats').insert(statsRows);
     if (statsErr) {
         console.log('  Stats error:', statsErr.message);
     } else {
-        console.log(`  ✅ department_api_stats: ${statsRows.length} departments`);
+        console.log(`  ✅ department_api_stats: ${statsRows.length} departments\n`);
     }
 
-    // -------------------------------------------------------
-    // STEP 3: Verify
-    // -------------------------------------------------------
-    console.log('\n--- Step 3: Verification ---');
+    // ---- Step 5: Final Report ----
+    console.log('='.repeat(75));
+    console.log('  FINAL DEPARTMENT REPORT (All from Scopus API)');
+    console.log('='.repeat(75));
+    console.log('  Papers | Authors | Department');
+    console.log('-'.repeat(75));
 
-    const { count: authCount } = await supabase.from('department_authors').select('*', { count: 'exact', head: true });
-    const { count: statsCount } = await supabase.from('department_api_stats').select('*', { count: 'exact', head: true });
-
-    console.log(`  department_authors: ${authCount} rows`);
-    console.log(`  department_api_stats: ${statsCount} departments`);
-
-    // Show final department summary from Supabase
-    const { data: stats } = await supabase.from('department_api_stats').select('*').order('author_count', { ascending: false });
-    console.log('\n📊 Final Department Stats in Supabase:');
-    console.log('-'.repeat(70));
-    console.log('  Authors | Papers | Department');
-    console.log('-'.repeat(70));
-    let totalAuthors = 0, totalPapers = 0;
-    stats.forEach(s => {
-        console.log(`  ${s.author_count.toString().padStart(6)} | ${s.total_papers.toString().padStart(6)} | ${s.department}`);
-        totalAuthors += s.author_count;
-        totalPapers += s.total_papers;
+    let sumPapers = 0, sumAuthors = 0;
+    const { data: finalStats } = await supabase.from('department_api_stats')
+        .select('*').order('total_papers', { ascending: false });
+    
+    finalStats.forEach(s => {
+        console.log(
+            `  ${s.total_papers.toString().padStart(6)} | ${s.author_count.toString().padStart(7)} | ${s.department}`
+        );
+        sumPapers += s.total_papers;
+        sumAuthors += s.author_count;
     });
-    console.log('-'.repeat(70));
-    console.log(`  ${totalAuthors.toString().padStart(6)} | ${totalPapers.toString().padStart(6)} | TOTAL`);
-
-    console.log('\n====================================================');
-    console.log('  ✅ Sync Complete!');
-    console.log('====================================================\n');
+    console.log('-'.repeat(75));
+    console.log(`  ${sumPapers.toString().padStart(6)} | ${sumAuthors.toString().padStart(7)} | SUM (papers counted in multiple depts)`);
+    console.log(`  ${totalPapers.toString().padStart(6)} |         | UNIQUE PAPERS (no overlap)`);
+    console.log('='.repeat(75));
+    console.log('\n  ✅ All done! Refresh your frontend.\n');
 }
 
 run().then(() => process.exit(0)).catch(err => {

@@ -1484,11 +1484,11 @@ export class DashboardComponent implements OnInit, AfterViewInit {
             return;
         }
 
-        // Condition 2: No specific department is selected -> Show the Department Distribution Mountain
+        // Condition 2: No specific department is selected -> Show Paper Count per Department
         if (!this.analyticsData.departments) return;
         const data = [...this.analyticsData.departments]
-            .sort((a, b) => (b.totalCitations || 0) - (a.totalCitations || 0))
-            .slice(0, 30); // Ensure we only show top 30 for clarity
+            .sort((a, b) => (b.paperCount || 0) - (a.paperCount || 0))
+            .slice(0, 30);
 
         const gradient = ctx.createLinearGradient(0, 0, 0, 750);
         gradient.addColorStop(0, 'rgba(99, 102, 241, 0.9)');    // Indigo 500
@@ -1505,8 +1505,8 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                     return name.length > 35 ? name.substring(0, 35) + '...' : name;
                 }),
                 datasets: [{
-                    label: 'Total Citations',
-                    data: data.map(d => d.totalCitations || 0),
+                    label: 'Paper Count',
+                    data: data.map(d => d.paperCount || 0),
                     backgroundColor: gradient,
                     borderColor: '#8b5cf6', // Violet
                     borderWidth: 5,
@@ -1520,7 +1520,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                     pointHoverBorderWidth: 4,
                     fill: 'start',
                     tension: 0.4,
-                    cubicInterpolationMode: 'monotone' // Smoother premium curve
+                    cubicInterpolationMode: 'monotone'
                 }]
             },
             options: {
@@ -1564,7 +1564,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)', // Slate 900
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
                         padding: 16,
                         cornerRadius: 12,
                         titleFont: { size: 15, weight: 800, family: "'Outfit', sans-serif" },
@@ -1576,7 +1576,7 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                                 const idx = context[0].dataIndex;
                                 return data[idx].department || 'NA';
                             },
-                            label: (context) => `✨ Citations: ${(context.parsed.y || 0).toLocaleString()}`
+                            label: (context) => `📄 Papers: ${(context.parsed.y || 0).toLocaleString()}`
                         }
                     }
                 }

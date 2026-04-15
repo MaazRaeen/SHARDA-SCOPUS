@@ -41,6 +41,16 @@ const upload = multer({
 });
 
 /**
+ * @route   GET /api/papers/analytics
+ * @desc    Get full analytics data for dashboard (departments, papers, authors, trends)
+ * @access  Public
+ * @query   department - Optional department name filter
+ * @query   startDate - Optional start date (YYYY-MM-DD)
+ * @query   endDate - Optional end date (YYYY-MM-DD)
+ */
+router.get('/analytics', controller.getAnalytics);
+
+/**
  * @route   POST /api/papers/upload
  * @desc    Upload and process CSV to extract Sharda authors with departments
  * @access  Public

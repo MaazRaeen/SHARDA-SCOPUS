@@ -261,48 +261,8 @@
         </div>
       </div>
 
-      <!-- Total Citations -->
+      <!-- Avg Papers per Author -->
       <div class="kpi-card kpi-amber">
-        <div class="kpi-glow"></div>
-        <div class="kpi-top">
-          <div class="kpi-icon-wrap">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-            </svg>
-          </div>
-          <span class="kpi-trend kpi-trend-up">↑ High</span>
-        </div>
-        <div class="kpi-value">{{ analyticsData.totalCitations || 0 | number }}</div>
-        <div class="kpi-label">Total Citations</div>
-        <div class="kpi-desc">Global research impact</div>
-        <div class="kpi-bar">
-          <div class="kpi-bar-fill" style="width:95%"></div>
-        </div>
-      </div>
-
-      <!-- H-Index -->
-      <div class="kpi-card kpi-cyan">
-        <div class="kpi-glow"></div>
-        <div class="kpi-top">
-          <div class="kpi-icon-wrap">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-            </svg>
-          </div>
-          <span class="kpi-trend kpi-trend-up">↑ Strong</span>
-        </div>
-        <div class="kpi-value">{{ analyticsData.universityHIndex || 0 }}</div>
-        <div class="kpi-label">University H-Index</div>
-        <div class="kpi-desc">Scholarly influence score</div>
-        <div class="kpi-bar">
-          <div class="kpi-bar-fill" style="width:65%"></div>
-        </div>
-      </div>
-
-      <!-- Avg Citations -->
-      <div class="kpi-card kpi-rose">
         <div class="kpi-glow"></div>
         <div class="kpi-top">
           <div class="kpi-icon-wrap">
@@ -313,13 +273,13 @@
               <line x1="6" y1="20" x2="6" y2="16"></line>
             </svg>
           </div>
-          <span class="kpi-trend kpi-trend-up">↑ Per paper</span>
+          <span class="kpi-trend kpi-trend-up">↑ Active</span>
         </div>
-        <div class="kpi-value">{{ analyticsData.avgCitations || 0 }}</div>
-        <div class="kpi-label">Avg Citations</div>
-        <div class="kpi-desc">Per published paper</div>
+        <div class="kpi-value">{{ analyticsData.totalAuthors > 0 ? ((analyticsData.totalPapers / analyticsData.totalAuthors) | number:'1.1-1') : '0' }}</div>
+        <div class="kpi-label">Avg Papers / Author</div>
+        <div class="kpi-desc">Research productivity index</div>
         <div class="kpi-bar">
-          <div class="kpi-bar-fill" style="width:55%"></div>
+          <div class="kpi-bar-fill" style="width:75%"></div>
         </div>
       </div>
 
@@ -466,121 +426,11 @@
     </div>
   </div>
 
-  <div class="section collaboration-section" *ngIf="analyticsData?.collaborationNetwork?.nodes?.length">
-    <h2 class="section-title">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" class="title-icon">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-        <circle cx="9" cy="7" r="4"></circle>
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-      </svg>
-      Institutional Research Synergy (Heatmap)
-    </h2>
-    <p class="section-subtitle">Co-authorship matrix across Sharda University departments</p>
+  <!-- Collaboration Section (hidden when no data) -->
+  <div class="section collaboration-section" *ngIf="analyticsData?.collaborationNetwork?.nodes?.length" style="display:none"></div>
 
-    <div class="collaboration-grid">
-      <div class="collaboration-visual-card">
-        <div class="heatmap-scroll-container">
-          <div #collaborationContainer class="collaboration-container"></div>
-        </div>
-        <div class="visual-footer">
-          <span class="statistical-note">Heatmap Matrix: Color intensity indicates collaboration volume</span>
-        </div>
-      </div>
-
-      <div class="collaboration-stats-card">
-        <h3 class="card-subtitle">Top Collaborating Pairs</h3>
-        <div class="stats-table-wrapper">
-          <table class="collaboration-table">
-            <thead>
-              <tr>
-                <th>Department A</th>
-                <th>Department B</th>
-                <th>Papers</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let link of analyticsData?.collaborationNetwork?.links?.slice(0, 8)">
-                <td>{{ link.source }}</td>
-                <td>{{ link.target }}</td>
-                <td>
-                  <span class="collaboration-badge">{{ link.weight }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="section trends-section">
-    <h2 class="section-title">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" class="title-icon">
-        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"></path>
-        <circle cx="12" cy="12" r="3"></circle>
-      </svg>
-      Research Topic Evolution
-    </h2>
-    <p class="section-subtitle">Visualizing trending keywords and focus areas over time</p>
-
-    <div class="view-toggle-container">
-      <div class="view-toggle">
-        <button [class.active]="activeTopicView === 'cloud'" (click)="toggleTopicView('cloud')">
-          Word Cloud
-        </button>
-        <button [class.active]="activeTopicView === 'nexus'" (click)="toggleTopicView('nexus')">
-          3D Nexus
-        </button>
-      </div>
-    </div>
-
-    <div class="trends-grid">
-      <div class="trend-card word-cloud-card">
-        <h3 class="card-subtitle">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" class="card-icon" style="color: #8b5cf6;">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-          </svg>
-          Selected Filter Trend
-        </h3>
-        <div class="chart-container-md impact-chart-wrapper">
-          <canvas #dateTrendCanvas></canvas>
-          <div class="empty-data-hint" *ngIf="!analyticsData?.dateTrendData?.length">
-            <p>No trend data available for selected duration</p>
-          </div>
-        </div>
-        <div class="visual-footer">
-          <span class="statistical-note">Publication growth trend over the selected time period</span>
-        </div>
-      </div>
-
-      <div class="trend-card evolution-card">
-        <h3 class="card-subtitle">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" class="card-icon" style="color: #ec4899;">
-            <path d="M12 20v-6M9 20v-10M15 20v-4M18 20V4M6 20v-2"></path>
-          </svg>
-          {{ activeTopicView === 'cloud' ? 'Top Area Growth (Trend Analysis)' : 'Research Constellation (3D Nexus)' }}
-        </h3>
-        <div class="trend-chart-wrapper">
-          <canvas #topicTrendsChart *ngIf="activeTopicView === 'cloud'"></canvas>
-          <div #nexusContainer class="nexus-container" [class.hidden]="activeTopicView !== 'nexus'"></div>
-          <div class="empty-data-hint" *ngIf="activeTopicView === 'cloud' && !analyticsData?.topicEvolution?.length">
-            <p>No trend data available</p>
-          </div>
-        </div>
-        <div class="visual-footer">
-          <span class="statistical-note">
-            {{ activeTopicView === 'cloud' ? 'Annual keyword frequency across Sharda publications' : '3D visualization
-            of keyword relationships and co-occurrence' }}
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Research Trends Section (hidden - no MongoDB data) -->
+  <div class="section trends-section" *ngIf="analyticsData?.dateTrendData?.length || analyticsData?.topicEvolution?.length" style="display:none"></div>
 
   <!-- Department Battle Mode Section -->
   <div class="section battle-mode-section" *ngIf="analyticsData?.departments?.length">
@@ -653,31 +503,11 @@
     </div>
   </div>
 
-  <div class="section geo-collaboration-section">
-    <h2 class="section-title">
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-        stroke="currentColor" stroke-width="2" class="title-icon">
-        <circle cx="12" cy="12" r="10"></circle>
-        <path d="M2 12h20"></path>
-        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-      </svg>
-      International Collaborations
-    </h2>
-    <p class="section-subtitle">Global reach of Sharda University research</p>
+  <!-- Geo Collaboration (hidden - no data) -->
+  <div class="section geo-collaboration-section" *ngIf="analyticsData?.geoCollaboration?.length" style="display:none"></div>
 
-    <div class="geo-map-wrapper">
-      <div #geoMapContainer class="geo-map-container"></div>
-      <div class="geo-stats" *ngIf="analyticsData?.geoCollaboration?.length">
-        <div class="geo-stat-item" *ngFor="let colab of analyticsData?.geoCollaboration?.slice(0, 12)">
-          <span class="country-name">{{ colab.country }}</span>
-          <span class="colab-count">{{ colab.count }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Research Trend Section (Line Chart) -->
-  <div class="section line-chart-section">
+  <!-- Research Trend Section (hidden when no year data) -->
+  <div class="section line-chart-section" *ngIf="analyticsData?.yearsData?.length">
     <h2 class="section-title">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2" class="title-icon">
@@ -686,23 +516,20 @@
       Research Growth Trend
     </h2>
     <p class="section-subtitle">Year-wise publication growth</p>
-
     <div class="chart-container large-chart">
       <canvas #lineChartCanvas></canvas>
     </div>
   </div>
 
-  <div class="grid-3-cols">
-    <!-- Paper Type Distribution -->
-    <div class="section chart-card">
+  <!-- Paper Type & Quartiles (hidden when no data) -->
+  <div class="grid-3-cols" *ngIf="analyticsData?.paperTypeData?.length || analyticsData?.quartileDistribution?.length">
+    <div class="section chart-card" *ngIf="analyticsData?.paperTypeData?.length">
       <h2 class="section-title">Publication Types</h2>
       <div class="chart-container-md">
         <canvas #paperTypeChartCanvas></canvas>
       </div>
     </div>
-
-    <!-- Journal Quartiles -->
-    <div class="section chart-card" style="grid-column: span 2;">
+    <div class="section chart-card" style="grid-column: span 2;" *ngIf="analyticsData?.quartileDistribution?.length">
       <h2 class="section-title">Journal Quality (Quartiles)</h2>
       <div class="chart-container-md">
         <canvas #quartileChartCanvas></canvas>
@@ -710,57 +537,22 @@
     </div>
   </div>
 
-  <!-- Department Quartile Comparison -->
-  <div class="section dept-quartile-section" *ngIf="!selectedDept">
-    <div class="section-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-      <h2 class="section-title" style="margin-bottom: 0;">Department Quartile Analysis</h2>
-      <button (click)="downloadQuartileCSV()" class="btn-download-premium" title="Download Quartile Details (CSV)">
-        <span class="material-icons">file_download</span>
-        <span>Download CSV</span>
-      </button>
-    </div>
+  <!-- Department Quartile Comparison (hidden when no quartile data) -->
+  <div class="section dept-quartile-section" *ngIf="!selectedDept && analyticsData?.quartileDistribution?.length" style="display:none"></div>
 
-    <p class="section-subtitle">Comparing Q1-Q4 (counts shown in legend) publication quality across top departments
-    </p>
-    <div class="chart-container large-chart" style="height: 500px;">
-      <canvas #deptQuartileChartCanvas></canvas>
-    </div>
-  </div>
-
-  <div class="grid-2-cols" style="align-items: stretch; gap: 1.5rem;">
-    <!-- Top Sources -->
-    <div class="section source-analytics-section" style="margin: 0;">
-      <h2 class="section-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" class="title-icon">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-        </svg>
-        Top Journals & Conferences
-      </h2>
-      <div class="chart-container large-chart" style="height: 480px;">
-        <canvas #sourceChartCanvas></canvas>
-      </div>
-    </div>
-
-    <!-- Department Citations Analytics -->
-    <div class="section dept-citations-section" style="margin: 0;">
-      <h2 class="section-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" stroke-width="2" class="title-icon">
-          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-        </svg>
-        {{ selectedDept ? 'Selected Filter Citation Trend' : 'Department-wise Citations' }}
-      </h2>
-      <p class="section-subtitle" style="margin-bottom: 0.5rem;">{{ selectedDept ? 'Citation performance for ' +
-        selectedDept + ' over the selected time period' : 'Total research impact and citation performance across top
-        30 departments' }}</p>
-
-      <!-- Chart Visualization -->
-      <div class="chart-container large-chart" style="height: 450px;">
-        <div class="chart-canvas-wrapper" style="height: 100%;">
-          <canvas #deptCitationsChartCanvas></canvas>
-        </div>
+  <!-- Department Paper Count Chart (replaces Sources + Citations which need MongoDB) -->
+  <div class="section dept-citations-section">
+    <h2 class="section-title">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" class="title-icon">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+      </svg>
+      Department-wise Paper Count
+    </h2>
+    <p class="section-subtitle" style="margin-bottom: 0.5rem;">Scopus API paper counts for each department (papers may appear in multiple departments)</p>
+    <div class="chart-container large-chart" style="height: 450px;">
+      <div class="chart-canvas-wrapper" style="height: 100%;">
+        <canvas #deptCitationsChartCanvas></canvas>
       </div>
     </div>
   </div>
@@ -806,7 +598,6 @@
               <th>Department</th>
               <th>Unique Authors</th>
               <th>Papers</th>
-              <th>Total Citations</th>
               <th>% of Total Papers</th>
             </tr>
           </thead>
@@ -819,8 +610,6 @@
               <td class="number-cell clickable-count" (click)="showAuthors(dept); $event.stopPropagation()">{{
                 dept.uniqueAuthors }}</td>
               <td class="number-cell">{{ dept.paperCount }}</td>
-              <td class="number-cell highlight-cites" style="font-weight: 600; color: var(--accent-orange, #f59e0b);">
-                {{ dept.totalCitations || 0 | number }}</td>
               <td class="percent-cell">
                 <div class="mini-bar">
                   <div class="mini-bar-fill" [style.width.%]="dept.percentage" [class]="dept.colorClass"></div>
