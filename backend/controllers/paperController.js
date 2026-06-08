@@ -2198,31 +2198,52 @@ module.exports = {
         if (canonical !== 'NA') dbSidToDept[m.scopusId] = canonical;
       });
 
-      // 4. Aggregate
+      // 4. Aggregate from Consolidated RAM Buffer for accurate, deduplicated counts
+      const allPapersMemory = await getRAMBuffer();
       const departmentGroups = {};
-      
+
+      // Initialize all canonical departments to ensure they appear even with 0 papers
+      [...canonicalDepts, 'NA'].forEach(dept => {
+        departmentGroups[dept] = {
+          department: dept,
+          authorCount: 0,
+          totalPapers: 0,
+          authors: []
+        };
+      });
+
+      // Update author counts and details first (using the authors we just fetched/mapped)
       allAuthors.forEach(a => {
         const sid = a['dc:identifier']?.replace('AUTHOR_ID:', '');
-        // Priority: 1. CSV Mapping, 2. DB Mapping, 3. NA
         const deptName = csvSidToDept[sid] || dbSidToDept[sid] || 'NA';
         const docCount = parseInt(a['document-count'] || 0);
-        
-        if (!departmentGroups[deptName]) {
-          departmentGroups[deptName] = {
-            department: deptName,
-            authorCount: 0,
-            totalPapers: 0,
-            authors: []
-          };
-        }
-        
         const name = (a['preferred-name']?.['given-name'] || '') + ' ' + (a['preferred-name']?.['surname'] || '');
-        departmentGroups[deptName].authorCount++;
-        departmentGroups[deptName].totalPapers += docCount;
-        departmentGroups[deptName].authors.push({
-          name: name.trim() || 'Unknown',
-          scopusId: sid,
-          paperCount: docCount
+        
+        if (departmentGroups[deptName]) {
+          departmentGroups[deptName].authorCount++;
+          departmentGroups[deptName].authors.push({
+            name: name.trim() || 'Unknown',
+            scopusId: sid,
+            paperCount: docCount
+          });
+        }
+      });
+
+      // Now calculate UNIQUE paper counts per department using the consolidated dataset
+      allPapersMemory.forEach(p => {
+        const paperDepts = new Set();
+        (p.authors || []).forEach(a => {
+          if (a.department) {
+            const normDept = normalizeDept(a.department);
+            if (normDept !== 'NA') paperDepts.add(normDept);
+          }
+        });
+
+        // Increment each unique department found in this paper exactly once
+        paperDepts.forEach(dept => {
+          if (departmentGroups[dept]) {
+            departmentGroups[dept].totalPapers++;
+          }
         });
       });
 
@@ -3132,76 +3153,501 @@ module.exports = {
    */
   getAnalytics: async (req, res) => {
     try {
-      const { department } = req.query;
-      const queryKey = `ANALYTICS_${department || 'All'}`;
+      const { department, startDate, endDate } = req.query;
+      const queryKey = `ANALYTICS_${department || 'All'}_${startDate || ''}_${endDate || ''}`;
 
       cleanExpiredCache();
       if (analyticsCacheMap.has(queryKey)) {
         return res.json({ success: true, data: analyticsCacheMap.get(queryKey).data, fromCache: true });
       }
 
-      // Fetch department stats from Supabase (same table as department-counter)
-      const { data: deptStats, error: statsErr } = await supabase
-        .from('department_api_stats').select('*').order('total_papers', { ascending: false });
-      if (statsErr) throw new Error('Supabase stats error: ' + statsErr.message);
+      // Fetch consolidated papers from MongoDB RAM Buffer
+      const allPapers = await getRAMBuffer();
 
-      // Fetch ALL 3,407 authors from Supabase (paginate past 1000 limit)
-      let allAuthorRows = [];
-      let page = 0;
-      while (true) {
-        let q = supabase.from('department_authors').select('*').range(page * 1000, (page + 1) * 1000 - 1);
-        if (department && department !== 'All') q = q.eq('department', department);
-        const { data: batch } = await q;
-        if (!batch || batch.length === 0) break;
-        allAuthorRows = allAuthorRows.concat(batch);
-        if (batch.length < 1000) break;
-        page++;
+      const sDate = startDate ? new Date(startDate) : null;
+      const eDate = endDate ? new Date(endDate) : null;
+      const yStart = sDate ? sDate.getFullYear() : 0;
+      const yEnd = eDate ? eDate.getFullYear() : 9999;
+
+      const hasDeptFilter = !!(department && department !== 'All');
+      let deptFuzzyPattern = null;
+      if (hasDeptFilter) {
+        const cleanFilter = department.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        deptFuzzyPattern = new RegExp(cleanFilter.replace(/department of /i, '').replace(/ & /g, '.*').replace(/ and /g, '.*').trim(), 'i');
       }
 
-      // Filter stats
-      let filteredStats = (deptStats || []).filter(s => s.department !== '[INSTITUTIONAL_CORE]');
-      if (department && department !== 'All') {
-        filteredStats = filteredStats.filter(s => s.department === department);
-      }
+      // Apply Filtering
+      const filteredPapers = allPapers.filter(p => {
+        // Date Filter
+        if (startDate || endDate) {
+          const pDate = p.publicationDate ? new Date(p.publicationDate) : null;
+          const pYear = p.year || 0;
+          let dateMatch = false;
+          if (pDate) {
+            if ((!sDate || pDate >= sDate) && (!eDate || pDate <= eDate)) dateMatch = true;
+          } else if (p.year) {
+            if (pYear >= yStart && pYear <= yEnd) dateMatch = true;
+          }
+          if (!dateMatch) return false;
+        }
 
-      // Build departments array
-      const departments = filteredStats.map(s => ({
-        department: s.department,
-        uniqueAuthors: s.author_count,
-        paperCount: s.total_papers,
-        totalCitations: 0,
-        quartiles: { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 }
-      }));
+        // Department Filter
+        if (hasDeptFilter) {
+          let deptMatch = false;
+          if (p.authors && p.authors.length) {
+            for (const a of p.authors) {
+              if (a.department && deptFuzzyPattern.test(a.department)) {
+                deptMatch = true;
+                break;
+              }
+            }
+          }
+          if (!deptMatch) return false;
+        }
+        return true;
+      });
 
       // Totals
-      const totalAuthors = filteredStats.reduce((sum, s) => sum + (s.author_count || 0), 0);
-      const totalPapers = 9641;
+      const totalPapers = filteredPapers.length;
+      const totalCitations = filteredPapers.reduce((sum, p) => sum + (p.citedBy || 0), 0);
+      const avgCitations = totalPapers > 0 ? parseFloat((totalCitations / totalPapers).toFixed(2)) : 0;
 
-      // Build top authors and all authors from Supabase rows
-      const sorted = [...allAuthorRows].sort((a, b) => (b.paper_count || 0) - (a.paper_count || 0));
-      const topAuthors = sorted.slice(0, 10).map(a => ({ name: a.name, count: a.paper_count || 0 }));
-      const allAuthors = sorted.map(a => ({ name: a.name, count: a.paper_count || 0 }));
+      // H-Index
+      const citationsList = filteredPapers.map(p => p.citedBy || 0).sort((a, b) => b - a);
+      let hIndex = 0;
+      for (let i = 0; i < citationsList.length; i++) {
+        if (citationsList[i] >= i + 1) {
+          hIndex = i + 1;
+        } else {
+          break;
+        }
+      }
+      const universityHIndex = hIndex;
 
-      // Department citations from paper counts (approximation)
-      const deptCitationsData = departments.map(d => ({ department: d.department, citations: d.paperCount }));
+      // Extract unique Sharda authors
+      const authorPaperCounts = {};
+      const authorDepartments = {};
+      const authorScopusIds = {};
+
+      filteredPapers.forEach(p => {
+        (p.authors || []).forEach(a => {
+          if (a.isSharda !== true) return;
+          if (hasDeptFilter) {
+            if (!a.department || !deptFuzzyPattern.test(a.department)) return;
+          }
+
+          const normDept = normalizeDept(a.department) || 'NA';
+          const key = a.authorName.trim();
+          
+          authorPaperCounts[key] = (authorPaperCounts[key] || 0) + 1;
+          if (!authorDepartments[key]) {
+            authorDepartments[key] = normDept;
+          }
+          if (a.scopusId) {
+            authorScopusIds[key] = a.scopusId;
+          }
+        });
+      });
+
+      const uniqueAuthors = Object.keys(authorPaperCounts);
+      const totalAuthors = uniqueAuthors.length;
+
+      // Top Authors and All Authors
+      const sortedAuthors = uniqueAuthors
+        .map(name => ({
+          name,
+          count: authorPaperCounts[name],
+          department: authorDepartments[name] || 'NA',
+          scopusId: authorScopusIds[name] || ''
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      const topAuthors = sortedAuthors.slice(0, 10);
+      const allAuthors = sortedAuthors;
+
+      // Group by Department
+      const deptStats = {};
+      filteredPapers.forEach(p => {
+        const paperDepts = new Set();
+        const paperQuartile = (p.quartile || 'NA').toUpperCase().trim();
+
+        (p.authors || []).forEach(a => {
+          if (a.isSharda !== true) return;
+          const normDept = normalizeDept(a.department) || 'NA';
+          paperDepts.add(normDept);
+        });
+
+        paperDepts.forEach(dept => {
+          if (!deptStats[dept]) {
+            deptStats[dept] = {
+              department: dept,
+              uniqueAuthorsSet: new Set(),
+              paperCount: 0,
+              totalCitations: 0,
+              quartiles: { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 }
+            };
+          }
+          deptStats[dept].paperCount++;
+          deptStats[dept].totalCitations += (p.citedBy || 0);
+          if (['Q1', 'Q2', 'Q3', 'Q4', 'NA'].includes(paperQuartile)) {
+            deptStats[dept].quartiles[paperQuartile] = (deptStats[dept].quartiles[paperQuartile] || 0) + 1;
+          } else {
+            deptStats[dept].quartiles['NA'] = (deptStats[dept].quartiles['NA'] || 0) + 1;
+          }
+        });
+
+        (p.authors || []).forEach(a => {
+          if (a.isSharda !== true) return;
+          const normDept = normalizeDept(a.department) || 'NA';
+          if (deptStats[normDept]) {
+            deptStats[normDept].uniqueAuthorsSet.add(a.authorName.trim());
+          }
+        });
+      });
+
+      const departmentsArray = Object.values(deptStats).map(d => ({
+        department: d.department,
+        uniqueAuthors: d.uniqueAuthorsSet.size,
+        paperCount: d.paperCount,
+        totalCitations: d.totalCitations,
+        quartiles: d.quartiles
+      })).sort((a, b) => b.paperCount - a.paperCount);
+
+      const totalDepartments = departmentsArray.filter(d => d.department !== 'NA').length;
+
+      // Publication trend (yearsData)
+      const yearsMap = {};
+      filteredPapers.forEach(p => {
+        if (p.year) {
+          yearsMap[p.year] = (yearsMap[p.year] || 0) + 1;
+        }
+      });
+      const yearsData = Object.keys(yearsMap).map(y => ({
+        year: parseInt(y, 10),
+        count: yearsMap[y]
+      })).sort((a, b) => a.year - b.year);
+
+      // Recent Papers
+      const recentPapers = [...filteredPapers]
+        .sort((a, b) => {
+          const dateA = a.publicationDate ? new Date(a.publicationDate) : new Date(a.year, 0, 1);
+          const dateB = b.publicationDate ? new Date(b.publicationDate) : new Date(b.year, 0, 1);
+          return dateB - dateA;
+        })
+        .slice(0, 5)
+        .map(p => ({
+          title: p.paperTitle,
+          year: p.year,
+          source: p.sourcePaper || p.publisher || 'Unknown',
+          type: p.paperType || 'Unknown',
+          doi: p.doi || '',
+          link: p.link || '',
+          citedBy: p.citedBy || 0,
+          quartile: p.quartile || 'NA',
+          authorNames: (p.authors || []).map(a => a.authorName)
+        }));
+
+      // Paper Type Distribution
+      const paperTypeMap = {};
+      filteredPapers.forEach(p => {
+        const type = p.paperType || 'Unknown';
+        paperTypeMap[type] = (paperTypeMap[type] || 0) + 1;
+      });
+      const paperTypeData = Object.keys(paperTypeMap).map(type => ({
+        type,
+        count: paperTypeMap[type]
+      })).sort((a, b) => b.count - a.count);
+
+      // Top Sources
+      const sourcesMap = {};
+      filteredPapers.forEach(p => {
+        const source = p.sourcePaper || p.publisher || 'Unknown';
+        sourcesMap[source] = (sourcesMap[source] || 0) + 1;
+      });
+      const topSources = Object.keys(sourcesMap).map(source => ({
+        source,
+        count: sourcesMap[source]
+      })).sort((a, b) => b.count - a.count).slice(0, 10);
+
+      // Department Citations data
+      const deptCitationsData = departmentsArray.map(d => ({
+        department: d.department,
+        citations: d.totalCitations
+      }));
+
+      // Quartile Distribution
+      const quartileMap = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 };
+      filteredPapers.forEach(p => {
+        const q = (p.quartile || 'NA').toUpperCase().trim();
+        if (['Q1', 'Q2', 'Q3', 'Q4'].includes(q)) {
+          quartileMap[q]++;
+        } else {
+          quartileMap['NA']++;
+        }
+      });
+      const quartileDistribution = Object.keys(quartileMap).map(q => ({
+        quartile: q,
+        count: quartileMap[q]
+      }));
+
+      // Date Trend (daily, monthly, or yearly)
+      const trendCounts = {};
+      filteredPapers.forEach(p => {
+        let dateStr = null;
+        if (p.publicationDate) {
+          const pDate = new Date(p.publicationDate);
+          const y = pDate.getFullYear();
+          const m = String(pDate.getMonth() + 1).padStart(2, '0');
+          const d = String(pDate.getDate()).padStart(2, '0');
+          if (startDate && endDate) {
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 31) {
+              dateStr = `${y}-${m}-${d}`;
+            } else {
+              dateStr = `${y}-${m}`;
+            }
+          } else {
+            dateStr = `${y}`;
+          }
+        } else if (p.year) {
+          dateStr = `${p.year}`;
+          if (startDate && endDate) {
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 31) {
+              dateStr = `${p.year}-01`;
+            }
+          }
+        }
+
+        if (dateStr) {
+          trendCounts[dateStr] = (trendCounts[dateStr] || 0) + 1;
+        }
+      });
+
+      const dateTrendData = Object.keys(trendCounts).map(label => ({
+        label,
+        count: trendCounts[label]
+      })).sort((a, b) => a.label.localeCompare(b.label));
+
+      // Geo Collaboration
+      const countryMap = {};
+      filteredPapers.forEach(p => {
+        (p.countries || []).forEach(c => {
+          const cleanCountry = c.trim();
+          if (!cleanCountry) return;
+          countryMap[cleanCountry] = (countryMap[cleanCountry] || 0) + 1;
+        });
+      });
+      const geoCollaboration = Object.keys(countryMap).map(country => ({
+        country,
+        count: countryMap[country]
+      })).sort((a, b) => b.count - a.count);
+
+      // Topic Evolution (Top keywords grouped by period)
+      const periodTopicsMap = {};
+      filteredPapers.forEach(p => {
+        let period = null;
+        if (p.publicationDate) {
+          const pDate = new Date(p.publicationDate);
+          const y = pDate.getFullYear();
+          const m = String(pDate.getMonth() + 1).padStart(2, '0');
+          const d = String(pDate.getDate()).padStart(2, '0');
+          if (startDate && endDate) {
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 31) {
+              period = `${y}-${m}-${d}`;
+            } else {
+              period = `${y}-${m}`;
+            }
+          } else {
+            period = `${y}`;
+          }
+        } else if (p.year) {
+          period = `${p.year}`;
+          if (startDate && endDate) {
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 31) {
+              period = `${p.year}-01`;
+            }
+          }
+        }
+
+        if (!period) return;
+
+        if (!periodTopicsMap[period]) {
+          periodTopicsMap[period] = {};
+        }
+
+        (p.keywords || []).forEach(kw => {
+          const cleanKw = kw.trim();
+          if (!cleanKw) return;
+          periodTopicsMap[period][cleanKw] = (periodTopicsMap[period][cleanKw] || 0) + 1;
+        });
+      });
+
+      const topicEvolution = Object.keys(periodTopicsMap).map(period => {
+        const periodKwMap = periodTopicsMap[period];
+        const topics = Object.keys(periodKwMap).map(keyword => ({
+          keyword,
+          count: periodKwMap[keyword]
+        })).sort((a, b) => b.count - a.count).slice(0, 5);
+
+        return {
+          period,
+          topics
+        };
+      }).sort((a, b) => a.period.localeCompare(b.period));
+
+      // Year-wise Citations trend
+      const citationsPeriodMap = {};
+      filteredPapers.forEach(p => {
+        let period = null;
+        if (p.publicationDate) {
+          const pDate = new Date(p.publicationDate);
+          const y = pDate.getFullYear();
+          const m = String(pDate.getMonth() + 1).padStart(2, '0');
+          const d = String(pDate.getDate()).padStart(2, '0');
+          if (startDate && endDate) {
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays <= 31) {
+              period = `${y}-${m}-${d}`;
+            } else {
+              period = `${y}-${m}`;
+            }
+          } else {
+            period = `${y}`;
+          }
+        } else if (p.year) {
+          period = `${p.year}`;
+          if (startDate && endDate) {
+            const diffTime = Math.abs(eDate - sDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            if (diffDays > 31) {
+              period = `${p.year}-01`;
+            }
+          }
+        }
+
+        if (period) {
+          citationsPeriodMap[period] = (citationsPeriodMap[period] || 0) + (p.citedBy || 0);
+        }
+      });
+
+      const yearWiseCitations = Object.keys(citationsPeriodMap).map(period => ({
+        period,
+        citations: citationsPeriodMap[period]
+      })).sort((a, b) => a.period.localeCompare(b.period));
+
+      // Collaboration Network
+      const departmentsList = departmentsArray.map(d => d.department);
+      const collaborationNodes = departmentsList.map(dept => ({ id: dept }));
+
+      const linksMap = {};
+      filteredPapers.forEach(p => {
+        const paperDepts = new Set();
+        (p.authors || []).forEach(a => {
+          if (a.isSharda !== true) return;
+          const normDept = normalizeDept(a.department) || 'NA';
+          paperDepts.add(normDept);
+        });
+
+        const paperDeptsArr = Array.from(paperDepts);
+        for (let i = 0; i < paperDeptsArr.length; i++) {
+          for (let j = i + 1; j < paperDeptsArr.length; j++) {
+            const deptA = paperDeptsArr[i];
+            const deptB = paperDeptsArr[j];
+            const key = deptA < deptB ? `${deptA}|${deptB}` : `${deptB}|${deptA}`;
+            linksMap[key] = (linksMap[key] || 0) + 1;
+          }
+        }
+      });
+
+      const collaborationLinks = Object.keys(linksMap).map(key => {
+        const [source, target] = key.split('|');
+        return {
+          source,
+          target,
+          weight: linksMap[key]
+        };
+      });
+
+      const collaborationNetwork = { nodes: collaborationNodes, links: collaborationLinks };
+
+      // Keyword Network (3D Nexus)
+      const keywordsMap = {};
+      filteredPapers.forEach(p => {
+        (p.keywords || []).forEach(kw => {
+          const cleanKw = kw.trim();
+          if (!cleanKw) return;
+          keywordsMap[cleanKw] = (keywordsMap[cleanKw] || 0) + 1;
+        });
+      });
+
+      const topKeywordsList = Object.keys(keywordsMap)
+        .sort((a, b) => keywordsMap[b] - keywordsMap[a])
+        .slice(0, 30);
+
+      const keywordNodes = topKeywordsList.map(kw => ({
+        id: kw,
+        name: kw,
+        val: keywordsMap[kw]
+      }));
+
+      const keywordLinksMap = {};
+      filteredPapers.forEach(p => {
+        const kws = (p.keywords || [])
+          .map(k => k.trim())
+          .filter(k => topKeywordsList.includes(k));
+        
+        for (let i = 0; i < kws.length; i++) {
+          for (let j = i + 1; j < kws.length; j++) {
+            const kwA = kws[i];
+            const kwB = kws[j];
+            if (kwA === kwB) continue;
+            const key = kwA < kwB ? `${kwA}|${kwB}` : `${kwB}|${kwA}`;
+            keywordLinksMap[key] = (keywordLinksMap[key] || 0) + 1;
+          }
+        }
+      });
+
+      const keywordLinks = Object.keys(keywordLinksMap).map(key => {
+        const [source, target] = key.split('|');
+        return {
+          source,
+          target,
+          weight: keywordLinksMap[key]
+        };
+      });
+
+      const keywordNetwork = { nodes: keywordNodes, links: keywordLinks };
 
       const responsePayload = {
         totalPapers,
         totalAuthors,
-        totalCitations: 0,
-        totalDepartments: departments.filter(d => d.department !== 'NA').length,
-        avgCitations: 0,
-        universityHIndex: 0,
-        departments,
-        yearsData: [],
+        totalCitations,
+        totalDepartments,
+        avgCitations,
+        universityHIndex,
+        departments: departmentsArray,
+        yearsData,
         topAuthors,
         allAuthors,
-        recentPapers: [],
-        paperTypeData: [],
-        topSources: [],
+        recentPapers,
+        paperTypeData,
+        topSources,
         deptCitationsData,
-        quartileDistribution: [],
-        dateTrendData: []
+        quartileDistribution,
+        dateTrendData,
+        geoCollaboration,
+        topicEvolution,
+        yearWiseCitations,
+        collaborationNetwork,
+        keywordNetwork
       };
 
       analyticsCacheMap.set(queryKey, { timestamp: Date.now(), data: responsePayload });

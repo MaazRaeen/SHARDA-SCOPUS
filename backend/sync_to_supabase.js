@@ -6,10 +6,18 @@
 const fs = require('fs');
 const axios = require('axios');
 const supabase = require('./config/db_supabase');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 const API_KEY = process.env.SCOPUS_API_KEY;
 const HEADERS = { 'X-ELS-APIKey': API_KEY, 'Accept': 'application/json' };
+
+// MongoDB Setup
+const consolidatedPaperSchema = new mongoose.Schema({
+    authors: Array,
+    paperId: String
+}, { strict: false });
+const ConsolidatedPaper = mongoose.models.ConsolidatedPaper || mongoose.model('ConsolidatedPaper', consolidatedPaperSchema, 'consolidatedpapers');
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -113,20 +121,6 @@ subjectToDeptMapping.forEach(({ code, dept }) => {
     deptToSubjectCodes[dept].push(code);
 });
 
-async function fetchPaperCount(dept, codes) {
-    const subjareaQuery = codes.map(c => `SUBJAREA(${c})`).join(' OR ');
-    const fullQuery = `AF-ID(60108680) AND (${subjareaQuery})`;
-    const url = `https://api.elsevier.com/content/search/scopus?query=${encodeURIComponent(fullQuery)}&count=1`;
-    
-    try {
-        const res = await axios.get(url, { headers: HEADERS, timeout: 30000 });
-        return parseInt(res.data['search-results']['opensearch:totalResults'] || '0');
-    } catch (err) {
-        console.log(`  ⚠️  Error for ${dept}: ${err.response?.status || err.message}`);
-        return 0;
-    }
-}
-
 async function run() {
     console.log('\n====================================================');
     console.log('  Mapping Papers & Authors to Departments');  
@@ -134,23 +128,41 @@ async function run() {
     console.log('====================================================\n');
 
     // ---- Step 1: Fetch unique paper counts per department from API ----
-    console.log('--- Step 1: Fetching paper counts from Scopus API ---');
-    
-    const deptPaperCounts = {};
-    
-    for (const [dept, codes] of Object.entries(deptToSubjectCodes)) {
-        const count = await fetchPaperCount(dept, codes);
-        deptPaperCounts[dept] = count;
-        console.log(`  ${count.toString().padStart(5)} papers | ${dept} (${codes.join(', ')})`);
-        await sleep(200);
-    }
+    console.log('--- Step 1: Connecting to MongoDB for consolidated data ---');
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log("Connected.");
 
-    // Get total unique papers
-    const totalUrl = `https://api.elsevier.com/content/search/scopus?query=${encodeURIComponent('AF-ID(60108680)')}&count=1`;
-    const totalRes = await axios.get(totalUrl, { headers: HEADERS });
-    const totalPapers = parseInt(totalRes.data['search-results']['opensearch:totalResults']);
-    console.log(`\n  Total unique Sharda papers: ${totalPapers}`);
-    console.log(`  Quota remaining: ${totalRes.headers['x-ratelimit-remaining']}\n`);
+    const deptPaperCounts = {};
+    const allDepts = Object.keys(deptToSubjectCodes);
+    allDepts.forEach(d => deptPaperCounts[d] = 0);
+
+    const allPapers = await ConsolidatedPaper.find({}).lean();
+    const totalPapers = allPapers.length;
+
+    console.log(`Processing ${totalPapers} consolidated papers...`);
+
+    allPapers.forEach(p => {
+        const paperDepts = new Set();
+        (p.authors || []).forEach(a => {
+            if (a.department) {
+                for (const dept of allDepts) {
+                    if (a.department.toLowerCase().includes(dept.toLowerCase()) || 
+                        dept.toLowerCase().includes(a.department.toLowerCase())) {
+                        paperDepts.add(dept);
+                        break;
+                    }
+                }
+            }
+        });
+
+        paperDepts.forEach(dept => {
+            if (deptPaperCounts.hasOwnProperty(dept)) {
+                deptPaperCounts[dept]++;
+            }
+        });
+    });
+
+    console.log(`\n  Total unique Sharda papers: ${totalPapers}\n`);
 
     // ---- Step 2: Map 3,407 authors to departments ----
     console.log('--- Step 2: Mapping authors to departments ---');
@@ -193,8 +205,8 @@ async function run() {
     console.log('--- Step 4: Rebuilding department_api_stats ---');
     await supabase.from('department_api_stats').delete().neq('id', 0);
 
-    const allDepts = [...canonicalDepts, 'NA'];
-    const statsRows = allDepts.map(dept => {
+    const allDeptsList = [...canonicalDepts, 'NA'];
+    const statsRows = allDeptsList.map(dept => {
         const authorCount = deptAuthorCounts[dept] || 0;
         const paperCount = deptPaperCounts[dept] || 0;
 
@@ -246,7 +258,11 @@ async function run() {
     console.log('\n  ✅ All done! Refresh your frontend.\n');
 }
 
-run().then(() => process.exit(0)).catch(err => {
+run().then(async () => {
+    console.log("\nDone syncing to Supabase.");
+    await mongoose.disconnect();
+    process.exit(0);
+}).catch(err => {
     console.error('Fatal:', err.message);
     process.exit(1);
 });
