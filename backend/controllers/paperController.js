@@ -3626,6 +3626,29 @@ module.exports = {
 
       const keywordNetwork = { nodes: keywordNodes, links: keywordLinks };
 
+      const yearlyTypeBreakdown = {};
+      const deptFilteredPapersForBreakdown = hasDeptFilter ? allPapers.filter(p => {
+        let deptMatch = false;
+        if (p.authors && p.authors.length) {
+          for (const a of p.authors) {
+            if (a.department && deptFuzzyPattern.test(a.department)) {
+              deptMatch = true;
+              break;
+            }
+          }
+        }
+        return deptMatch;
+      }) : allPapers;
+
+      deptFilteredPapersForBreakdown.forEach(p => {
+        const y = p.year || 'Unknown';
+        const type = p.paperType || 'Other';
+        if (!yearlyTypeBreakdown[y]) {
+          yearlyTypeBreakdown[y] = {};
+        }
+        yearlyTypeBreakdown[y][type] = (yearlyTypeBreakdown[y][type] || 0) + 1;
+      });
+
       const responsePayload = {
         totalPapers,
         totalAuthors,
@@ -3647,7 +3670,8 @@ module.exports = {
         topicEvolution,
         yearWiseCitations,
         collaborationNetwork,
-        keywordNetwork
+        keywordNetwork,
+        yearlyTypeBreakdown
       };
 
       analyticsCacheMap.set(queryKey, { timestamp: Date.now(), data: responsePayload });

@@ -193,7 +193,7 @@
     <div class="kpi-grid">
 
       <!-- Total Papers -->
-      <div class="kpi-card kpi-blue" style="cursor: pointer;" (click)="showAllPapers()" title="View Published Papers">
+      <div class="kpi-card kpi-blue" style="cursor: pointer;" (click)="openBreakdownModal()" title="View Publication Breakdown">
         <div class="kpi-glow"></div>
         <div class="kpi-top">
           <div class="kpi-icon-wrap">
@@ -208,12 +208,12 @@
           <span class="kpi-trend kpi-trend-up">↑ Active</span>
         </div>
         <div class="kpi-value">{{ analyticsData.totalPapers | number }}</div>
-        <div class="kpi-label">Total Papers</div>
+        <div class="kpi-label">Scopus Publications</div>
         <div class="kpi-desc">Indexed research publications</div>
         <div class="kpi-bar">
           <div class="kpi-bar-fill" style="width:88%"></div>
         </div>
-        <div class="kpi-see-more">See More →</div>
+        <div class="kpi-see-more">See Breakdown →</div>
       </div>
 
       <!-- Unique Authors -->
@@ -1221,6 +1221,128 @@
         <span>View All {{ analyticsData?.totalPapers }} Papers</span>
         <span class="material-icons" style="font-size: 18px;">arrow_forward</span>
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Scopus Publication Breakdown Modal -->
+<div class="modal-backdrop breakdown-modal-backdrop" *ngIf="showBreakdownModal" (click)="closeBreakdownModal()">
+  <div class="modal-content breakdown-modal" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="header-title">
+        <span class="dept-badge-lg" style="background: linear-gradient(135deg, #4f46e5, #6366f1); font-size: 1.25rem;">📊</span>
+        <div>
+          <h3 style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #1e293b;">Scopus Publication Breakdown</h3>
+          <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">
+            {{ selectedDept ? selectedDept : 'All Departments' }}
+          </p>
+        </div>
+      </div>
+      
+      <!-- Year Selector inside header -->
+      <div class="breakdown-year-select-wrap">
+        <select class="breakdown-year-select" [(ngModel)]="breakdownSelectedYear" (change)="onBreakdownYearChange()">
+          <option value="All">All Years</option>
+          <option *ngFor="let year of availableYears" [value]="year">{{ year }}</option>
+        </select>
+      </div>
+
+      <button class="close-btn" (click)="closeBreakdownModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="modal-body breakdown-modal-body">
+      <!-- Main Visual Section -->
+      <div class="breakdown-main-grid">
+        <!-- Chart Section -->
+        <div class="breakdown-chart-panel">
+          <div class="breakdown-chart-container">
+            <canvas #breakdownChartCanvas></canvas>
+          </div>
+          <div class="breakdown-chart-label">
+            <span class="bcl-count">{{ getYearlyPapersCount() }}</span>
+            <span class="bcl-label">Publications</span>
+          </div>
+        </div>
+
+        <!-- List Section -->
+        <div class="breakdown-stats-panel">
+          <h4 class="list-title">Publication Types</h4>
+          <div class="breakdown-type-list">
+            <div class="breakdown-type-card" 
+                 *ngFor="let item of getBreakdownStats()" 
+                 [class.active]="breakdownSelectedType === item.type"
+                 (click)="selectBreakdownType(item.type)">
+              <div class="btc-indicator" [style.background]="item.color"></div>
+              <div class="btc-info">
+                <span class="btc-name">{{ item.type }}</span>
+                <div class="btc-progress-bar">
+                  <div class="btc-progress-fill" [style.width.%]="item.percentage" [style.background]="item.color"></div>
+                </div>
+              </div>
+              <div class="btc-meta">
+                <span class="btc-count">{{ item.count }}</span>
+                <span class="btc-percentage">{{ item.percentage }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Papers List Section -->
+      <div class="breakdown-papers-section" *ngIf="breakdownSelectedType">
+        <div class="pm-active-header">
+          <span>{{ breakdownSelectedType }} ({{ breakdownSelectedYear === 'All' ? 'All Years' : breakdownSelectedYear }})</span>
+          <span class="pm-active-count">{{ breakdownPapers.length }} papers loaded</span>
+        </div>
+
+        <!-- Loading spinner for papers -->
+        <div *ngIf="isBreakdownPapersLoading" class="breakdown-papers-loading">
+          <div class="mini-spinner"></div>
+          <span>Loading papers...</span>
+        </div>
+
+        <!-- Scrollable papers list -->
+        <div class="papers-list-scroll breakdown-papers-scroll" *ngIf="!isBreakdownPapersLoading">
+          <div class="pm-paper-card" *ngFor="let paper of breakdownPapers; let i = index">
+            <div class="pm-accent" [style.background]="'#6366f1'"></div>
+            <div class="pm-rank">{{ i + 1 }}</div>
+            <div class="pm-body">
+              <a *ngIf="paper.link" [href]="paper.link" target="_blank" class="pm-title">
+                {{ paper.paperTitle }}
+                <span class="pm-link-icon">↗</span>
+              </a>
+              <span *ngIf="!paper.link" class="pm-title no-link">{{ paper.paperTitle }}</span>
+              <div class="pm-tags">
+                <span class="pm-tag pm-tag-year">{{ paper.year }}</span>
+                <span class="pm-tag pm-tag-type">{{ paper.paperType || 'Unknown' }}</span>
+                <span class="pm-tag pm-tag-quartile" [attr.data-q]="paper.quartile" *ngIf="paper.quartile">{{ paper.quartile }}</span>
+                <span class="pm-tag pm-tag-authors" *ngIf="paper.authorCount">
+                  <span class="material-icons" style="font-size: 13px;">person</span>
+                  {{ paper.authorCount }} author{{ paper.authorCount > 1 ? 's' : '' }}
+                </span>
+              </div>
+              <div class="pm-authors" *ngIf="paper.authors?.length">
+                {{ getAuthorNamesString(paper.authors) }}
+              </div>
+            </div>
+            <div class="pm-cite" *ngIf="paper.citedBy > 0" [class.high-cite]="paper.citedBy >= 10">
+              <span class="pm-cite-num">{{ paper.citedBy }}</span>
+              <span class="pm-cite-label">cited</span>
+            </div>
+          </div>
+          <div class="empty-list" *ngIf="breakdownPapers.length === 0" style="text-align: center; padding: 2rem;">
+            No publications found for this category and year.
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

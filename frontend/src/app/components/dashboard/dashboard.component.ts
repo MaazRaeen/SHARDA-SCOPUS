@@ -62,6 +62,7 @@ interface AnalyticsData {
     };
     quartileDistribution?: { quartile: string, count: number }[];
     dateTrendData?: { label: string, count: number }[]; // NEW
+    yearlyTypeBreakdown?: Record<string, Record<string, number>>;
 }
 
 export interface PersonalStats {
@@ -124,6 +125,16 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     selectedDepartment: DepartmentStats | null = null;
     modalAuthors: any[] = [];
     isModalLoading: boolean = false;
+
+    // Scopus Breakdown Modal State
+    showBreakdownModal: boolean = false;
+    breakdownSelectedYear: string = 'All';
+    breakdownSelectedType: string | null = null;
+    breakdownPapers: any[] = [];
+    isBreakdownPapersLoading: boolean = false;
+    breakdownChart: Chart | null = null;
+
+    @ViewChild('breakdownChartCanvas') breakdownChartCanvas!: ElementRef<HTMLCanvasElement>;
 
     // Master Department Filter
     selectedDept: string = '';
@@ -398,6 +409,242 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.papersModalSearch = '';
         document.body.style.overflow = 'auto';
         this.cdr.markForCheck();
+    }
+
+    // --- Scopus Breakdown Modal Methods ---
+    getStandardCategory(rawType: string): string {
+        const type = (rawType || '').toLowerCase().trim();
+        if (type.includes('article')) return 'Articles';
+        if (type.includes('review')) return 'Reviews';
+        if (type.includes('conference') || type.includes('proceeding')) return 'Conference Papers';
+        if (type.includes('chapter')) return 'Book Chapters';
+        if (type === 'book' || type === 'books') return 'Books';
+        return 'Other Publications';
+    }
+
+    getAuthorNamesString(authors: any[]): string {
+        if (!authors || authors.length === 0) return '';
+        const names = authors.map(a => {
+            const name = a.authorName || a.name || '';
+            // Apply AuthorNamePipe logic inline if needed, or just display raw
+            return name;
+        });
+        if (names.length > 4) {
+            return names.slice(0, 4).join(' · ') + ' · +' + (names.length - 4) + ' more';
+        }
+        return names.join(' · ');
+    }
+
+    getYearlyPapersCount(): number {
+        if (!this.analyticsData) return 0;
+        if (this.breakdownSelectedYear === 'All') {
+            return this.analyticsData.totalPapers;
+        }
+        const breakdown = this.analyticsData.yearlyTypeBreakdown;
+        if (!breakdown || !breakdown[this.breakdownSelectedYear]) return 0;
+        
+        const types = breakdown[this.breakdownSelectedYear];
+        return Object.values(types).reduce((sum, val) => sum + val, 0);
+    }
+
+    openBreakdownModal(): void {
+        if (!this.analyticsData) return;
+        this.showBreakdownModal = true;
+        
+        // Default to 'All' or the current selected year if single year is selected in date filter
+        if (this.startDate && this.endDate && this.startDate.substring(0, 4) === this.endDate.substring(0, 4)) {
+            this.breakdownSelectedYear = this.startDate.substring(0, 4);
+        } else {
+            this.breakdownSelectedYear = 'All';
+        }
+        
+        this.breakdownSelectedType = null;
+        this.breakdownPapers = [];
+        document.body.style.overflow = 'hidden';
+        this.cdr.markForCheck();
+        
+        // Initialize the chart after the modal DOM is rendered
+        setTimeout(() => {
+            this.initializeBreakdownChart();
+        }, 150);
+    }
+
+    closeBreakdownModal(): void {
+        this.showBreakdownModal = false;
+        document.body.style.overflow = 'auto';
+        if (this.breakdownChart) {
+            this.breakdownChart.destroy();
+            this.breakdownChart = null;
+        }
+        this.cdr.markForCheck();
+    }
+
+    getBreakdownStats(): { type: string, count: number, percentage: number, color: string }[] {
+        if (!this.analyticsData || !this.analyticsData.yearlyTypeBreakdown) return [];
+        
+        const breakdown = this.analyticsData.yearlyTypeBreakdown;
+        const counts: { [category: string]: number } = {
+            'Articles': 0,
+            'Books': 0,
+            'Conference Papers': 0,
+            'Book Chapters': 0,
+            'Reviews': 0,
+            'Other Publications': 0
+        };
+        
+        const selectedYear = this.breakdownSelectedYear;
+        
+        if (selectedYear === 'All') {
+            Object.keys(breakdown).forEach(year => {
+                const types = breakdown[year];
+                Object.keys(types).forEach(rawType => {
+                    const cat = this.getStandardCategory(rawType);
+                    counts[cat] += (types[rawType] || 0);
+                });
+            });
+        } else if (breakdown[selectedYear]) {
+            const types = breakdown[selectedYear];
+            Object.keys(types).forEach(rawType => {
+                const cat = this.getStandardCategory(rawType);
+                counts[cat] += (types[rawType] || 0);
+            });
+        }
+        
+        const total = Object.values(counts).reduce((sum, c) => sum + c, 0);
+        
+        const colors: { [category: string]: string } = {
+            'Articles': '#3b82f6',          // Blue
+            'Books': '#10b981',             // Emerald
+            'Conference Papers': '#8b5cf6', // Violet
+            'Book Chapters': '#f59e0b',     // Amber
+            'Reviews': '#ec4899',           // Pink
+            'Other Publications': '#9ca3af' // Gray
+        };
+        
+        return Object.keys(counts).map(category => ({
+            type: category,
+            count: counts[category],
+            percentage: total > 0 ? parseFloat(((counts[category] / total) * 100).toFixed(1)) : 0,
+            color: colors[category] || '#9ca3af'
+        }));
+    }
+
+    initializeBreakdownChart(): void {
+        if (!this.breakdownChartCanvas) return;
+        if (this.breakdownChart) {
+            this.breakdownChart.destroy();
+        }
+        
+        const ctx = this.breakdownChartCanvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+        
+        const stats = this.getBreakdownStats();
+        const activeStats = stats.some(s => s.count > 0) ? stats.filter(s => s.count > 0) : stats;
+        
+        this.breakdownChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: activeStats.map(s => s.type),
+                datasets: [{
+                    data: activeStats.map(s => s.count),
+                    backgroundColor: activeStats.map(s => s.color),
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 12
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        padding: 12,
+                        cornerRadius: 8,
+                        titleFont: { size: 13, weight: 'bold', family: "'Outfit', sans-serif" },
+                        bodyFont: { size: 12, family: "'Inter', sans-serif" },
+                        callbacks: {
+                            label: (context) => {
+                                const label = context.label || '';
+                                const val = context.parsed;
+                                const total = (context.dataset.data as number[]).reduce((a, b) => a + b, 0);
+                                const pct = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
+                                return ` ${label}: ${val} (${pct}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%',
+                animation: {
+                    animateRotate: true,
+                    duration: 800
+                }
+            }
+        });
+    }
+
+    onBreakdownYearChange(): void {
+        this.initializeBreakdownChart();
+        if (this.breakdownSelectedType) {
+            this.selectBreakdownType(this.breakdownSelectedType);
+        }
+        this.cdr.markForCheck();
+    }
+
+    selectBreakdownType(type: string): void {
+        this.breakdownSelectedType = type;
+        this.isBreakdownPapersLoading = true;
+        this.breakdownPapers = [];
+        this.cdr.markForCheck();
+        
+        let rawTypes: string[] = [];
+        if (type === 'Articles') rawTypes = ['Article', 'Articles'];
+        else if (type === 'Books') rawTypes = ['Book', 'Books'];
+        else if (type === 'Conference Papers') rawTypes = ['Conference paper', 'Conference Paper', 'Conference Proceeding'];
+        else if (type === 'Book Chapters') rawTypes = ['Book Chapter', 'Book - Chapter', 'Chapter'];
+        else if (type === 'Reviews') rawTypes = ['Review', 'Reviews'];
+        
+        const isOther = type === 'Other Publications';
+        
+        const filterParams: any = {
+            department: this.selectedDept || undefined,
+            year: this.breakdownSelectedYear === 'All' ? undefined : this.breakdownSelectedYear,
+            limit: 100
+        };
+        
+        if (!isOther && rawTypes.length > 0) {
+            filterParams.paperType = rawTypes[0];
+        }
+        
+        this.paperService.getConsolidatedPapers(filterParams).subscribe({
+            next: (res) => {
+                this.isBreakdownPapersLoading = false;
+                if (res.success && res.data) {
+                    let papers = res.data;
+                    if (isOther) {
+                        papers = papers.filter(p => {
+                            const cat = this.getStandardCategory(p.paperType || '');
+                            return cat === 'Other Publications';
+                        });
+                    } else if (rawTypes.length > 1) {
+                        papers = papers.filter(p => {
+                            const cat = this.getStandardCategory(p.paperType || '');
+                            return cat === type;
+                        });
+                    }
+                    this.breakdownPapers = papers.slice(0, 50);
+                }
+                this.cdr.markForCheck();
+            },
+            error: (err) => {
+                this.isBreakdownPapersLoading = false;
+                console.error('Error fetching breakdown papers:', err);
+                this.cdr.markForCheck();
+            }
+        });
     }
 
     get filteredPapersModal(): any[] {
