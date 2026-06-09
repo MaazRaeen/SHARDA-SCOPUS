@@ -100,6 +100,8 @@
 .search-section {
     max-width: 1200px;
     margin: 0 auto 3rem;
+    position: relative;
+    z-index: 10;
 }
 
 .search-wrapper {
