@@ -63,6 +63,7 @@ interface AnalyticsData {
     quartileDistribution?: { quartile: string, count: number }[];
     dateTrendData?: { label: string, count: number }[]; // NEW
     yearlyTypeBreakdown?: Record<string, Record<string, number>>;
+    yearlyQuartileBreakdown?: { year: string, Q1: number, Q2: number, Q3: number, Q4: number, NA: number }[];
     authorParticipationTrend?: { year: number, count: number }[];
 }
 
@@ -110,6 +111,52 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     topicTrendsChart: Chart | null = null; // NEW to allow re-destruction
     quartileChart: Chart | null = null;
     deptQuartileChart: Chart | null = null;
+
+    // --- New Quartiles Dashboard Properties ---
+    activeDashboardTab: 'overview' | 'quartiles' = 'overview';
+    quartileCompareMode: 'absolute' | 'percentage' = 'percentage';
+    activeQuartileFilter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'NA' | null = null;
+    quartileSearchQuery: string = '';
+    quartilePapers: ConsolidatedPaper[] = [];
+    isQuartilePapersLoading = false;
+
+    // Quartile Chart Instances
+    overallQuartileDistChart: Chart | null = null;
+    quartileYearlyTrendChart: Chart | null = null;
+    deptQuartilesCompareChart: Chart | null = null;
+    deptQuartileDistChart: Chart | null = null; // Department-level donut chart
+
+    overallQuartileDistCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('overallQuartileDistCanvas') set overallQuartileDistCanvasSetter(content: ElementRef<HTMLCanvasElement>) {
+        if (content) {
+            this.overallQuartileDistCanvas = content;
+            this.initializeOverallQuartileDistChart();
+        }
+    }
+
+    quartileYearlyTrendCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('quartileYearlyTrendCanvas') set quartileYearlyTrendCanvasSetter(content: ElementRef<HTMLCanvasElement>) {
+        if (content) {
+            this.quartileYearlyTrendCanvas = content;
+            this.initializeQuartileYearlyTrendChart();
+        }
+    }
+
+    deptQuartilesCompareCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('deptQuartilesCompareCanvas') set deptQuartilesCompareCanvasSetter(content: ElementRef<HTMLCanvasElement>) {
+        if (content) {
+            this.deptQuartilesCompareCanvas = content;
+            this.initializeDeptQuartilesCompareChart();
+        }
+    }
+
+    deptQuartileDistCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('deptQuartileDistCanvas') set deptQuartileDistCanvasSetter(content: ElementRef<HTMLCanvasElement>) {
+        if (content) {
+            this.deptQuartileDistCanvas = content;
+            this.initializeOverallQuartileDistChart();
+        }
+    }
 
     @ViewChild('paperTypeChartCanvas') paperTypeChartCanvas!: ElementRef<HTMLCanvasElement>;
     @ViewChild('sourceChartCanvas') sourceChartCanvas!: ElementRef<HTMLCanvasElement>;
@@ -1116,7 +1163,12 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                         });
                     }
 
-                    this.initializeCharts();
+                    if (this.activeDashboardTab === 'quartiles') {
+                        this.initializeQuartileDashboardCharts();
+                        this.loadQuartilePapers();
+                    } else {
+                        this.initializeCharts();
+                    }
                     this.cdr.markForCheck();
                 } else {
                     this.errorMessage = 'Failed to load analytics data';
@@ -3033,6 +3085,591 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                 node, // lookAt ({x,y,z})
                 3000  // ms transition duration
             );
+        });
+    }
+
+    // --- Quartiles Dashboard Tab Switching and Interactive Filters ---
+    switchDashboardTab(tab: 'overview' | 'quartiles'): void {
+        this.activeDashboardTab = tab;
+        this.activeQuartileFilter = null; // reset filter on tab switch
+        this.quartileSearchQuery = ''; // reset search
+        if (tab === 'quartiles') {
+            this.loadQuartilePapers();
+            this.initializeQuartileDashboardCharts();
+        } else {
+            this.initializeCharts();
+        }
+        this.cdr.markForCheck();
+    }
+
+    setQuartileCompareMode(mode: 'absolute' | 'percentage'): void {
+        this.quartileCompareMode = mode;
+        this.initializeDeptQuartilesCompareChart();
+        this.cdr.markForCheck();
+    }
+
+    filterQuartilePapers(quartile: 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'NA' | null): void {
+        if (this.activeQuartileFilter === quartile) {
+            this.activeQuartileFilter = null; // Toggle off if already selected
+        } else {
+            this.activeQuartileFilter = quartile;
+        }
+        this.cdr.markForCheck();
+    }
+
+    loadQuartilePapers(): void {
+        if (!this.analyticsData) return;
+        this.isQuartilePapersLoading = true;
+        
+        const filterParams: any = {
+            limit: 300
+        };
+        if (this.selectedDept) {
+            filterParams.department = this.selectedDept;
+        }
+        if (this.startDate) {
+            filterParams.startDate = this.startDate;
+        }
+        if (this.endDate) {
+            filterParams.endDate = this.endDate;
+        }
+
+        this.paperService.getConsolidatedPapers(filterParams).subscribe({
+            next: (response) => {
+                this.isQuartilePapersLoading = false;
+                if (response.success && response.data) {
+                    this.quartilePapers = response.data;
+                } else {
+                    this.quartilePapers = [];
+                }
+                this.cdr.markForCheck();
+            },
+            error: (err) => {
+                this.isQuartilePapersLoading = false;
+                this.quartilePapers = [];
+                this.cdr.markForCheck();
+            }
+        });
+    }
+
+    get filteredQuartilePapers(): ConsolidatedPaper[] {
+        let papers = this.quartilePapers;
+        
+        // 1. Quartile Filter
+        if (this.activeQuartileFilter) {
+            papers = papers.filter(p => {
+                const q = (p.quartile || 'NA').toUpperCase().trim();
+                return q === this.activeQuartileFilter;
+            });
+        }
+        
+        // 2. Search Query Filter
+        if (this.quartileSearchQuery.trim()) {
+            const query = this.quartileSearchQuery.toLowerCase().trim();
+            papers = papers.filter(p => {
+                const title = (p.paperTitle || '').toLowerCase();
+                const publisher = (p.publisher || '').toLowerCase();
+                const source = (p.sourcePaper || '').toLowerCase();
+                const doi = (p.doi || '').toLowerCase();
+                const authors = p.authors ? p.authors.map((a: any) => (a.authorName || '').toLowerCase()).join(' ') : '';
+                return title.includes(query) || publisher.includes(query) || source.includes(query) || doi.includes(query) || authors.includes(query);
+            });
+        }
+        
+        return papers;
+    }
+
+    downloadQuartileStatsCSV(): void {
+        this.paperService.downloadQuartileCSV(this.selectedDept || undefined, this.startDate || undefined, this.endDate || undefined);
+    }
+
+    getQuartileCount(quartile: string): number {
+        if (!this.analyticsData || !this.analyticsData.quartileDistribution) return 0;
+        const item = this.analyticsData.quartileDistribution.find(d => d.quartile.toUpperCase() === quartile.toUpperCase());
+        return item ? item.count : 0;
+    }
+
+    getHqRatio(): number {
+        if (!this.analyticsData || !this.analyticsData.quartileDistribution) return 0;
+        const q1 = this.getQuartileCount('Q1');
+        const q2 = this.getQuartileCount('Q2');
+        const total = this.analyticsData.quartileDistribution.reduce((sum, d) => sum + d.count, 0);
+        return total > 0 ? Math.round(((q1 + q2) / total) * 100) : 0;
+    }
+
+    getQuartileRatio(quartile: string): number {
+        if (!this.analyticsData || !this.analyticsData.quartileDistribution) return 0;
+        const count = this.getQuartileCount(quartile);
+        const total = this.analyticsData.quartileDistribution.reduce((sum, d) => sum + d.count, 0);
+        return total > 0 ? Math.round((count / total) * 100) : 0;
+    }
+
+    getSortedDeptsByQ1(): DepartmentStats[] {
+        if (!this.analyticsData || !this.analyticsData.departments) return [];
+        return [...this.analyticsData.departments]
+            .sort((a, b) => {
+                const q1A = a.quartiles?.Q1 || 0;
+                const q1B = b.quartiles?.Q1 || 0;
+                if (q1B !== q1A) return q1B - q1A;
+                return b.paperCount - a.paperCount; // Tie-breaker by total papers
+            });
+    }
+
+    getUnivAvgRatio(metric: 'Q1' | 'Q2' | 'HQ'): number {
+        const source = this.allDepartmentsStats.length > 0 ? this.allDepartmentsStats : (this.analyticsData?.departments || []);
+        if (!source.length) return 0;
+
+        let totalMetrics = 0;
+        let totalPapers = 0;
+
+        source.forEach(d => {
+            if (metric === 'Q1') {
+                totalMetrics += d.quartiles?.Q1 || 0;
+            } else if (metric === 'Q2') {
+                totalMetrics += d.quartiles?.Q2 || 0;
+            } else if (metric === 'HQ') {
+                totalMetrics += (d.quartiles?.Q1 || 0) + (d.quartiles?.Q2 || 0);
+            }
+            totalPapers += d.paperCount || 0;
+        });
+
+        return totalPapers > 0 ? Math.round((totalMetrics / totalPapers) * 100) : 0;
+    }
+
+    getDeptAuthorsSortedByQuality(): any[] {
+        if (!this.analyticsData || !this.analyticsData.allAuthors) return [];
+        
+        const authorQualityMap = new Map<string, { name: string, q1Count: number, q2Count: number, otherCount: number }>();
+        const activeDept = this.selectedDept ? this.selectedDept.toLowerCase().trim() : '';
+        
+        this.quartilePapers.forEach(p => {
+            const q = (p.quartile || 'NA').toUpperCase().trim();
+            
+            p.authors?.forEach((a: any) => {
+                const authorName = typeof a === 'string' ? a.trim() : (a.authorName || '').trim();
+                const authorDept = typeof a === 'string' ? '' : (a.department || '');
+                
+                // Filter by selected department if provided
+                if (activeDept) {
+                    if (!authorDept || !authorDept.toLowerCase().includes(activeDept)) {
+                        return;
+                    }
+                }
+
+                if (!authorName) return;
+
+                if (!authorQualityMap.has(authorName)) {
+                    authorQualityMap.set(authorName, { name: authorName, q1Count: 0, q2Count: 0, otherCount: 0 });
+                }
+
+                const entry = authorQualityMap.get(authorName)!;
+                if (q === 'Q1') entry.q1Count++;
+                else if (q === 'Q2') entry.q2Count++;
+                else entry.otherCount++;
+            });
+        });
+
+        return Array.from(authorQualityMap.values())
+            .sort((a, b) => {
+                const totalQualityA = a.q1Count + a.q2Count;
+                const totalQualityB = b.q1Count + b.q2Count;
+                if (totalQualityB !== totalQualityA) return totalQualityB - totalQualityA;
+                return b.q1Count - a.q1Count; // Tie-breaker by Q1
+            });
+    }
+
+    // --- Quartiles Dashboard Charts ---
+    initializeQuartileDashboardCharts(): void {
+        if (!this.analyticsData) return;
+        setTimeout(() => {
+            this.initializeOverallQuartileDistChart();
+            this.initializeQuartileYearlyTrendChart();
+            if (!this.selectedDept) {
+                this.initializeDeptQuartilesCompareChart();
+            }
+        }, 150);
+    }
+
+    initializeOverallQuartileDistChart(): void {
+        const canvas = this.overallQuartileDistCanvas || this.deptQuartileDistCanvas;
+        if (!this.analyticsData || !canvas) return;
+        
+        const isDeptView = !!this.selectedDept;
+        const chartToDestroy = isDeptView ? this.deptQuartileDistChart : this.overallQuartileDistChart;
+        if (chartToDestroy) {
+            chartToDestroy.destroy();
+        }
+
+        const ctx = canvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+
+        const dataList = this.analyticsData.quartileDistribution || [];
+        const order = ['Q1', 'Q2', 'Q3', 'Q4', 'NA'];
+        
+        const counts = order.map(q => {
+            const item = dataList.find((d: any) => d.quartile.toUpperCase() === q);
+            return item ? item.count : 0;
+        });
+
+        const labels = ['Q1 Journals', 'Q2 Journals', 'Q3 Journals', 'Q4 Journals', 'Others / Non-Indexed'];
+        const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#94a3b8'];
+
+        const chartConfig: any = {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: counts,
+                    backgroundColor: colors,
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 12
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            font: { size: 12, family: "'Inter', sans-serif", weight: 500 },
+                            padding: 15,
+                            color: '#475569'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        padding: 12,
+                        cornerRadius: 8,
+                        boxPadding: 6,
+                        callbacks: {
+                            label: (context: any) => {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a: any, b: any) => a + b, 0) as number;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                                return ` ${context.label}: ${value} papers (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                onClick: (event: any, elements: any[]) => {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const quartileKeys: Array<'Q1'|'Q2'|'Q3'|'Q4'|'NA'> = ['Q1', 'Q2', 'Q3', 'Q4', 'NA'];
+                        this.filterQuartilePapers(quartileKeys[index]);
+                    }
+                }
+            }
+        };
+
+        if (isDeptView) {
+            this.deptQuartileDistChart = new Chart(ctx, chartConfig);
+        } else {
+            this.overallQuartileDistChart = new Chart(ctx, chartConfig);
+        }
+    }
+
+    initializeQuartileYearlyTrendChart(): void {
+        if (!this.analyticsData || !this.quartileYearlyTrendCanvas || !this.analyticsData.yearlyQuartileBreakdown) return;
+        
+        if (this.quartileYearlyTrendChart) {
+            this.quartileYearlyTrendChart.destroy();
+        }
+
+        const ctx = this.quartileYearlyTrendCanvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+
+        const trendData = this.analyticsData.yearlyQuartileBreakdown;
+        const labels = trendData.map((d: any) => d.year);
+        
+        const q1Data = trendData.map((d: any) => d.Q1 || 0);
+        const q2Data = trendData.map((d: any) => d.Q2 || 0);
+        const q3Data = trendData.map((d: any) => d.Q3 || 0);
+        const q4Data = trendData.map((d: any) => d.Q4 || 0);
+        const naData = trendData.map((d: any) => d.NA || 0);
+
+        const colors = {
+            Q1: '#10b981',
+            Q2: '#3b82f6',
+            Q3: '#f59e0b',
+            Q4: '#ef4444',
+            NA: '#94a3b8'
+        };
+
+        this.quartileYearlyTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Q1 Journals',
+                        data: q1Data,
+                        borderColor: colors.Q1,
+                        backgroundColor: colors.Q1 + '10',
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.Q1,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.35
+                    },
+                    {
+                        label: 'Q2 Journals',
+                        data: q2Data,
+                        borderColor: colors.Q2,
+                        backgroundColor: colors.Q2 + '10',
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.Q2,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.35
+                    },
+                    {
+                        label: 'Q3 Journals',
+                        data: q3Data,
+                        borderColor: colors.Q3,
+                        backgroundColor: colors.Q3 + '10',
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.Q3,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.35
+                    },
+                    {
+                        label: 'Q4 Journals',
+                        data: q4Data,
+                        borderColor: colors.Q4,
+                        backgroundColor: colors.Q4 + '10',
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.Q4,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.35
+                    },
+                    {
+                        label: 'Others / Non-Indexed',
+                        data: naData,
+                        borderColor: colors.NA,
+                        backgroundColor: colors.NA + '10',
+                        borderWidth: 3,
+                        pointBackgroundColor: colors.NA,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: false,
+                        tension: 0.35
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            padding: 15,
+                            color: '#475569'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        padding: 12,
+                        cornerRadius: 8,
+                        boxPadding: 8
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: { font: { size: 11 }, precision: 0 }
+                    }
+                }
+            }
+        });
+    }
+
+    initializeDeptQuartilesCompareChart(): void {
+        if (!this.analyticsData || !this.deptQuartilesCompareCanvas || !this.analyticsData.departments) return;
+
+        if (this.deptQuartilesCompareChart) {
+            this.deptQuartilesCompareChart.destroy();
+        }
+
+        const ctx = this.deptQuartilesCompareCanvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+
+        const depts = [...this.analyticsData.departments]
+            .sort((a, b) => b.paperCount - a.paperCount)
+            .slice(0, 15);
+
+        const labels = depts.map(d => {
+            let name = d.department || 'NA';
+            name = name.replace('Department of ', '');
+            return name.length > 18 ? name.substring(0, 18) + '...' : name;
+        });
+
+        const isPercentage = this.quartileCompareMode === 'percentage';
+
+        const q1Data = depts.map(d => {
+            const total = d.paperCount || 1;
+            const count = d.quartiles?.Q1 || 0;
+            return isPercentage ? (count / total) * 100 : count;
+        });
+
+        const q2Data = depts.map(d => {
+            const total = d.paperCount || 1;
+            const count = d.quartiles?.Q2 || 0;
+            return isPercentage ? (count / total) * 100 : count;
+        });
+
+        const q3Data = depts.map(d => {
+            const total = d.paperCount || 1;
+            const count = d.quartiles?.Q3 || 0;
+            return isPercentage ? (count / total) * 100 : count;
+        });
+
+        const q4Data = depts.map(d => {
+            const total = d.paperCount || 1;
+            const count = d.quartiles?.Q4 || 0;
+            return isPercentage ? (count / total) * 100 : count;
+        });
+
+        const naData = depts.map(d => {
+            const total = d.paperCount || 1;
+            const count = d.quartiles?.NA || 0;
+            return isPercentage ? (count / total) * 100 : count;
+        });
+
+        const colors = {
+            Q1: '#10b981',
+            Q2: '#3b82f6',
+            Q3: '#f59e0b',
+            Q4: '#ef4444',
+            NA: '#94a3b8'
+        };
+
+        this.deptQuartilesCompareChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Q1 Journals',
+                        data: q1Data,
+                        backgroundColor: colors.Q1,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Q2 Journals',
+                        data: q2Data,
+                        backgroundColor: colors.Q2,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Q3 Journals',
+                        data: q3Data,
+                        backgroundColor: colors.Q3,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Q4 Journals',
+                        data: q4Data,
+                        backgroundColor: colors.Q4,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.8
+                    },
+                    {
+                        label: 'Others / Non-Indexed',
+                        data: naData,
+                        backgroundColor: colors.NA,
+                        barPercentage: 0.65,
+                        categoryPercentage: 0.8
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { font: { size: 10 } }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        max: isPercentage ? 100 : undefined,
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: {
+                            font: { size: 10 },
+                            callback: (val) => isPercentage ? `${val}%` : val
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            padding: 12
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#e2e8f0',
+                        padding: 12,
+                        cornerRadius: 8,
+                        callbacks: {
+                            label: (context) => {
+                                const val = context.parsed.y;
+                                if (isPercentage) {
+                                    const deptIndex = context.dataIndex;
+                                    const dept = depts[deptIndex];
+                                    const rawVal = context.datasetIndex === 0 ? dept.quartiles?.Q1 :
+                                                 context.datasetIndex === 1 ? dept.quartiles?.Q2 :
+                                                 context.datasetIndex === 2 ? dept.quartiles?.Q3 :
+                                                 context.datasetIndex === 3 ? dept.quartiles?.Q4 : dept.quartiles?.NA;
+                                    const formattedVal = val !== null && val !== undefined ? val.toFixed(1) : '0';
+                                    return ` ${context.dataset.label}: ${formattedVal}% (${rawVal || 0} papers)`;
+                                }
+                                return ` ${context.dataset.label}: ${val !== null && val !== undefined ? val : 0} papers`;
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 

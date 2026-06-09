@@ -1,0 +1,289 @@
+<app-navbar></app-navbar>
+
+<div class="hindex-dashboard-container">
+  <!-- Dashboard Header -->
+  <div class="dashboard-header">
+    <div class="header-title-area">
+      <h1>H-Index Research Analytics</h1>
+      <div class="header-subtitle">Dynamic research impact metrics, growth timelines, and departmental rankings</div>
+    </div>
+    <button class="refresh-btn" (click)="loadData()" [disabled]="isLoading">
+      <svg *ngIf="!isLoading" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+      <span *ngIf="isLoading" class="spinner-small"></span>
+      {{ isLoading ? 'Loading...' : 'Refresh Data' }}
+    </button>
+  </div>
+
+  <!-- Filters Panel -->
+  <div class="filter-panel">
+    <div class="filter-grid">
+      <!-- Department Filter -->
+      <div class="filter-group">
+        <label class="filter-label">Department</label>
+        <select class="filter-select" [(ngModel)]="selectedDepartment" (change)="onFilterChange()">
+          <option value="All">All Departments</option>
+          <option *ngFor="let dept of departmentsList" [value]="dept">{{ dept }}</option>
+        </select>
+      </div>
+
+      <!-- Publication Category Filter -->
+      <div class="filter-group">
+        <label class="filter-label">Publication Category</label>
+        <select class="filter-select" [(ngModel)]="selectedCategory" (change)="onFilterChange()">
+          <option value="All">All Categories</option>
+          <option *ngFor="let cat of categoriesList" [value]="cat">{{ cat }}</option>
+        </select>
+      </div>
+
+      <!-- Start Year Filter -->
+      <div class="filter-group">
+        <label class="filter-label">Start Year</label>
+        <select class="filter-select" [(ngModel)]="startYear" (change)="onFilterChange()">
+          <option *ngFor="let y of yearsList" [value]="y">{{ y }}</option>
+        </select>
+      </div>
+
+      <!-- End Year Filter -->
+      <div class="filter-group">
+        <label class="filter-label">End Year</label>
+        <select class="filter-select" [(ngModel)]="endYear" (change)="onFilterChange()">
+          <option *ngFor="let y of yearsList" [value]="y">{{ y }}</option>
+        </select>
+      </div>
+
+      <!-- Actions -->
+      <div class="filter-group filter-actions">
+        <button class="clear-btn" (click)="resetFilters()">Clear Filters</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main KPI Deck -->
+  <div *ngIf="!isLoading" class="kpi-grid">
+    <!-- H-Index Card -->
+    <div class="kpi-card hindex-highlight">
+      <div class="kpi-label">H-Index</div>
+      <div class="kpi-value">
+        H-{{ data?.hIndex || 0 }}
+      </div>
+      <div class="kpi-subtitle">
+        {{ selectedDepartment === 'All' ? 'Overall Institutional H-Index' : 'Departmental H-Index' }}
+      </div>
+      <div class="kpi-icon-bg">📈</div>
+    </div>
+
+    <!-- Total Papers Card -->
+    <div class="kpi-card">
+      <div class="kpi-label">Publications</div>
+      <div class="kpi-value">
+        {{ data?.totalPapers | number }}
+      </div>
+      <div class="kpi-subtitle">Total indexed papers</div>
+      <div class="kpi-icon-bg">📄</div>
+    </div>
+
+    <!-- Total Citations Card -->
+    <div class="kpi-card">
+      <div class="kpi-label">Total Citations</div>
+      <div class="kpi-value">
+        {{ data?.totalCitations | number }}
+      </div>
+      <div class="kpi-subtitle">Cumulative citation count</div>
+      <div class="kpi-icon-bg">💬</div>
+    </div>
+
+    <!-- Average Citations Card -->
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Citations</div>
+      <div class="kpi-value">
+        {{ data?.avgCitations || 0 }}
+      </div>
+      <div class="kpi-subtitle">Citations per publication</div>
+      <div class="kpi-icon-bg">📊</div>
+    </div>
+
+    <!-- Max Citations Card -->
+    <div class="kpi-card">
+      <div class="kpi-label">Max Citations</div>
+      <div class="kpi-value">
+        {{ data?.maxCitations || 0 }}
+      </div>
+      <div class="kpi-subtitle">Highest cited single paper</div>
+      <div class="kpi-icon-bg">👑</div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div *ngIf="isLoading" class="loading-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text">Computing academic metrics and rendering visualizations...</div>
+  </div>
+
+  <!-- Visualization Section -->
+  <div *ngIf="!isLoading && data" class="visualization-grid">
+    <!-- Growth Timeline -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <span>Timeline Growth Trend</span>
+        </div>
+        <div class="chart-toggle-group">
+          <button class="chart-toggle-btn" [class.active]="growthMetric === 'hIndex'" (click)="setGrowthMetric('hIndex')">H-Index</button>
+          <button class="chart-toggle-btn" [class.active]="growthMetric === 'totalCitations'" (click)="setGrowthMetric('totalCitations')">Citations</button>
+          <button class="chart-toggle-btn" [class.active]="growthMetric === 'paperCount'" (click)="setGrowthMetric('paperCount')">Papers</button>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas #growthChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Department H-Index Comparison -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <span>Departmental H-Index Rankings</span>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas #deptHIndexChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Department Bubble Map -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <span>Research Influence Mapping</span>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas #bubbleChartCanvas></canvas>
+      </div>
+      <div class="kpi-subtitle" style="text-align: center; margin-top: 10px;">
+        X: Publications | Y: H-Index | Bubble Size: Citations
+      </div>
+    </div>
+
+    <!-- Citation Distribution -->
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <div class="chart-card-title">
+          <span>Citation Performance Breakdown</span>
+        </div>
+      </div>
+      <div class="chart-container">
+        <canvas #distChartCanvas></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detail Tables Grid -->
+  <div *ngIf="!isLoading && data" class="tables-grid">
+    <!-- Top Impact Papers -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">👑 High Impact Publications</div>
+      </div>
+      <div class="table-responsive">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Rank</th>
+              <th>Publication Details</th>
+              <th>Authors</th>
+              <th>Citations</th>
+              <th style="width: 50px;">Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let paper of data.topPapers; let idx = index">
+              <td>
+                <span class="rank-badge" [class.rank-1]="idx === 0" [class.rank-2]="idx === 1" [class.rank-3]="idx === 2" [class.rank-other]="idx > 2">
+                  {{ idx + 1 }}
+                </span>
+              </td>
+              <td>
+                <div class="paper-title-cell" [title]="paper.title">{{ paper.title }}</div>
+                <div class="paper-meta-desc">
+                  <span>{{ paper.year }}</span> | 
+                  <span>{{ paper.paperType }}</span> | 
+                  <span>{{ paper.source }}</span>
+                </div>
+              </td>
+              <td>
+                <div class="paper-authors-list" [title]="paper.authors">{{ paper.authors }}</div>
+              </td>
+              <td>
+                <span class="citation-badge">{{ paper.citedBy }}</span>
+              </td>
+              <td>
+                <a *ngIf="paper.link || paper.doi" [href]="paper.link || 'https://doi.org/' + paper.doi" target="_blank" class="link-icon-btn">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+                </a>
+                <span *ngIf="!paper.link && !paper.doi">—</span>
+              </td>
+            </tr>
+            <tr *ngIf="data.topPapers?.length === 0">
+              <td colspan="5">
+                <div class="no-data-state">
+                  <span class="no-data-icon">📁</span>
+                  <div class="no-data-title">No high impact papers found</div>
+                  <div class="no-data-msg">No publications match your criteria.</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Top Impact Authors -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div class="table-card-title">👥 Top Researchers</div>
+      </div>
+      <div class="table-responsive">
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Rank</th>
+              <th>Researcher</th>
+              <th>Papers</th>
+              <th>Citations</th>
+              <th>H-Index</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let author of data.topAuthors; let idx = index">
+              <td>
+                <span class="rank-badge" [class.rank-1]="idx === 0" [class.rank-2]="idx === 1" [class.rank-3]="idx === 2" [class.rank-other]="idx > 2">
+                  {{ idx + 1 }}
+                </span>
+              </td>
+              <td>
+                <strong>{{ author.name }}</strong>
+              </td>
+              <td>{{ author.paperCount }}</td>
+              <td>
+                <span class="citation-badge">{{ author.totalCitations }}</span>
+              </td>
+              <td>
+                <span class="hindex-badge">H-{{ author.hIndex }}</span>
+              </td>
+            </tr>
+            <tr *ngIf="data.topAuthors?.length === 0">
+              <td colspan="5">
+                <div class="no-data-state">
+                  <span class="no-data-icon">👥</span>
+                  <div class="no-data-title">No researchers found</div>
+                  <div class="no-data-msg">Try resetting the department or year filters.</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

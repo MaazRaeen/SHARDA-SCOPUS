@@ -51,6 +51,17 @@ const upload = multer({
 router.get('/analytics', controller.getAnalytics);
 
 /**
+ * @route   GET /api/papers/h-index-analytics
+ * @desc    Get H-Index analytics data (trends, distributions, dynamic values, rankings)
+ * @access  Public
+ * @query   department - Optional department name filter
+ * @query   startDate - Optional start date (YYYY-MM-DD)
+ * @query   endDate - Optional end date (YYYY-MM-DD)
+ * @query   paperType - Optional paper category filter
+ */
+router.get('/h-index-analytics', controller.getHIndexAnalytics);
+
+/**
  * @route   POST /api/papers/upload
  * @desc    Upload and process CSV to extract Sharda authors with departments
  * @access  Public
@@ -76,6 +87,7 @@ router.get('/department-api-counts', controller.getDepartmentApiCounts);
 router.get('/author-papers/:scopusId', controller.getAuthorPapersFromApi);
 router.post('/department-papers-api', controller.getDepartmentPapersFromApi);
 router.get('/department-details-db/:department', controller.getDepartmentDetailsFromDb);
+router.get('/department-details-mongo/:department', controller.getDepartmentDetailsMongo);
 
 /**
  * @route   GET /api/papers/departments

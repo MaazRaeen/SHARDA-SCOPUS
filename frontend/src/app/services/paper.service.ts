@@ -117,6 +117,16 @@ export class PaperService {
   }
 
   /**
+   * Get department details (authors and papers) from MongoDB RAM Buffer
+   * @param department - Department name
+   * @returns Observable with department details
+   */
+  getDepartmentDetailsMongo(department: string): Observable<ApiResponse<any>> {
+    const url = `${this.API_URL}/department-details-mongo/${encodeURIComponent(department)}`;
+    return this.http.get<ApiResponse<any>>(url);
+  }
+
+  /**
    * Get consolidated papers with up to 3 authors per paper
    * @param filters - Filter options
    * @returns Observable with array of consolidated papers
@@ -193,6 +203,17 @@ export class PaperService {
   }
 
   /**
+   * Download department-wise quartile distribution as CSV
+   */
+  downloadQuartileCSV(department?: string, startDate?: string, endDate?: string): void {
+    const params = new URLSearchParams();
+    if (department && department !== 'All') params.set('department', department);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    window.open(`${this.API_URL}/download/quartiles?${params.toString()}`, '_blank');
+  }
+
+  /**
    * Clear all authors from the database
    * @returns Observable with success response
    */
@@ -222,6 +243,25 @@ export class PaperService {
         if (!department && !startDate && !endDate) this.cache.set(cacheKey, response);
       })
     );
+  }
+
+  /**
+   * Get dynamic H-Index analytics data based on filters
+   */
+  getHIndexAnalytics(
+    department?: string,
+    startDate?: string,
+    endDate?: string,
+    paperType?: string
+  ): Observable<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (department && department !== 'All') params.set('department', department);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (paperType && paperType !== 'All') params.set('paperType', paperType);
+
+    const url = `${this.API_URL}/h-index-analytics?${params.toString()}`;
+    return this.http.get<ApiResponse<any>>(url);
   }
 
   /**

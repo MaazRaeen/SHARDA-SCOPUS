@@ -13,6 +13,7 @@ import { BlogComponent } from './components/blog/blog.component';
 import { AuthorListComponent } from './components/author-list/author-list.component';
 import { AuthorApiComponent } from './components/author-api/author-api.component';
 import { DepartmentCounterComponent } from './components/department-counter/department-counter.component';
+import { HIndexDashboardComponent } from './components/h-index-dashboard/h-index-dashboard.component';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -27,6 +28,7 @@ export const routes: Routes = [
   { path: 'papers', component: PaperListComponent, canActivate: [authGuard] },
   { path: 'scopus-fetch', component: ScopusFetchComponent, canActivate: [authGuard] },
   { path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
+  { path: 'h-index-analytics', component: HIndexDashboardComponent, canActivate: [authGuard] },
   { path: 'scopus-table', component: ScopusTableComponent, canActivate: [authGuard] },
   { path: 'teacher-upload', component: TeacherUploadComponent, canActivate: [authGuard] },
   { path: 'teacher-statistics', component: TeacherStatisticsComponent, canActivate: [authGuard] },

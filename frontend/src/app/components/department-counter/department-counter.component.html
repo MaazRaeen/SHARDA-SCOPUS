@@ -1,15 +1,18 @@
+<app-navbar></app-navbar>
+
 <div class="page-container">
   <div class="content-wrapper">
     <!-- Header Section -->
-    <header class="dashboard-header">
+    <header class="dashboard-header animate-fade-in">
       <div class="header-titles">
-        <h1 class="font-bold">Research Department Analytics</h1>
-        <p class="subtitle">Real-time publication aggregation from Scopus API</p>
+        <span class="badge-accent">Analytics Dashboard</span>
+        <h1 class="font-bold">Department Publication Analytics</h1>
+        <p class="subtitle">Interactive research output & publication category distributions across academic departments</p>
       </div>
       <div class="header-actions">
-        <button class="refresh-btn" [class.syncing]="isLoading" (click)="refreshData()" [disabled]="isLoading">
+        <button class="refresh-btn text-sm font-semibold" [class.syncing]="isLoading" (click)="refreshData()" [disabled]="isLoading">
           <span class="material-icons">sync</span>
-          {{ isLoading ? 'Syncing...' : 'Update Paper' }}
+          {{ isLoading ? 'Refreshing...' : 'Sync Data' }}
         </button>
         <div class="search-input-wrapper">
           <span class="material-icons search-icon">search</span>
@@ -28,122 +31,196 @@
       </div>
     </header>
 
-    <!-- KPI Cards -->
-    <section class="kpi-section" *ngIf="departments.length > 0">
-      <div class="kpi-card pink">
-        <div class="kpi-icon"><span class="material-icons">account_balance</span></div>
-        <div class="kpi-data">
-          <span class="kpi-value">{{ institutionalTotal || '9,641' }}</span>
-          <span class="kpi-label">Unique Inst. Papers</span>
-        </div>
-      </div>
-      <div class="kpi-card purple">
-        <div class="kpi-icon"><span class="material-icons">article</span></div>
-        <div class="kpi-data">
-          <span class="kpi-value">{{ totalPapers }}</span>
-          <span class="kpi-label">Total Activity Count</span>
-        </div>
-      </div>
-      <div class="kpi-card blue">
-        <div class="kpi-icon"><span class="material-icons">groups</span></div>
-        <div class="kpi-data">
-          <span class="kpi-value">{{ totalAuthors }}</span>
-          <span class="kpi-label">Active Authors</span>
-        </div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-icon"><span class="material-icons">trending_up</span></div>
-        <div class="kpi-data">
-          <span class="kpi-value">{{ avgPapersPerAuthor }}</span>
-          <span class="kpi-label">Avg Papers/Author</span>
-        </div>
-      </div>
-    </section>
-
     <!-- Success/Error/Loading -->
     <div class="status-container" *ngIf="isLoading && departments.length === 0">
-      <div class="loader"></div>
-      <p>Synchronizing with Scopus Registry...</p>
+      <div class="loader-pulse"></div>
+      <p>Synchronizing department metrics from database...</p>
     </div>
 
-    <div class="error-container" *ngIf="error">
+    <div class="error-container animate-fade-in" *ngIf="error">
       <span class="material-icons">error_outline</span>
       <p>{{ error }}</p>
       <button (click)="loadData()">Retry Connection</button>
     </div>
 
-    <!-- Departments Grid -->
-    <div class="dept-grid">
-      <div class="dept-card" *ngFor="let dept of filteredDepartments">
-        <div class="card-header">
-          <h3>{{ dept.department }}</h3>
+    <!-- Main Content Area when data is loaded -->
+    <ng-container *ngIf="departments.length > 0">
+      <!-- KPI Cards -->
+      <section class="kpi-section animate-fade-in">
+        <div class="kpi-card glass purple">
+          <div class="kpi-icon"><span class="material-icons">article</span></div>
+          <div class="kpi-data">
+            <span class="kpi-value">{{ totalPapers | number }}</span>
+            <span class="kpi-label">Total Publications</span>
+          </div>
+        </div>
+        <div class="kpi-card glass blue">
+          <div class="kpi-icon"><span class="material-icons">corporate_fare</span></div>
+          <div class="kpi-data">
+            <span class="kpi-value">{{ departments.length }}</span>
+            <span class="kpi-label">Active Departments</span>
+          </div>
+        </div>
+        <div class="kpi-card glass green">
+          <div class="kpi-icon"><span class="material-icons">people</span></div>
+          <div class="kpi-data">
+            <span class="kpi-value">{{ totalAuthors | number }}</span>
+            <span class="kpi-label">Active Researchers</span>
+          </div>
+        </div>
+        <div class="kpi-card glass orange">
+          <div class="kpi-icon"><span class="material-icons">analytics</span></div>
+          <div class="kpi-data">
+            <span class="kpi-value">{{ avgPapersPerAuthor | number:'1.2-2' }}</span>
+            <span class="kpi-label">Avg Citations/Paper</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Charts Section -->
+      <section class="charts-grid animate-fade-in">
+        <!-- Stacked Bar Chart -->
+        <div class="chart-card glass">
+          <div class="chart-header">
+            <div>
+              <h3>Departmental Research Comparison</h3>
+              <p>Top departments research outputs by publication types</p>
+            </div>
+          </div>
+          <div class="chart-body">
+            <canvas #stackedBarCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Doughnut / Pie Chart -->
+        <div class="chart-card glass">
+          <div class="chart-header">
+            <div>
+              <h3>Publication Category Breakdown</h3>
+              <p>{{ selectedDept ? selectedDept.department : 'Institutional overall' }} publication type distributions</p>
+            </div>
+            <button class="reset-scope-btn text-xs font-semibold" *ngIf="selectedDept" (click)="closeDetails()">
+              <span class="material-icons text-sm">restart_alt</span> Reset to Overall
+            </button>
+          </div>
+          <div class="chart-body">
+            <canvas #pieChartCanvas></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Departments Grid -->
+      <section class="departments-section animate-fade-in">
+        <div class="section-header">
+          <h2>Departmental Publications Listing</h2>
+          <p>Click on any department to view detailed publication records and author contributions</p>
         </div>
         
-        <div class="card-body">
-          <div class="stat-row">
-            <div class="stat-block">
-              <span class="stat-num">{{ dept.totalPapers }}</span>
-              <span class="stat-text">Papers</span>
+        <div class="dept-grid">
+          <div class="dept-card glass" 
+               [class.active-card]="selectedDept?.department === dept.department"
+               *ngFor="let dept of filteredDepartments">
+            <div class="card-header">
+              <div class="dept-info">
+                <h3>{{ dept.department }}</h3>
+                <span class="author-count-badge">{{ dept.uniqueAuthors }} Authors</span>
+              </div>
+              <div class="paper-count-badge">{{ dept.paperCount }} Papers</div>
             </div>
-            <div class="stat-block">
-              <span class="stat-num">{{ dept.authorCount }}</span>
-              <span class="stat-text">Authors</span>
-            </div>
-          </div>
-          
-          <div class="progress-container">
-            <div class="progress-bar-bg">
-              <div class="progress-bar-fill" [style.width.%]="getPercentage(dept.totalPapers)"></div>
-            </div>
-            <span class="progress-label">{{ getPercentage(dept.totalPapers).toFixed(1) }}% of Lead Dept</span>
-          </div>
-        </div>
+            
+            <div class="card-body">
+              <div class="progress-bar-container">
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" [style.width.%]="getPercentage(dept.paperCount)"></div>
+                </div>
+                <span class="progress-label">{{ getPercentage(dept.paperCount).toFixed(1) }}% of Lead Dept</span>
+              </div>
 
-        <div class="card-footer">
-          <div class="top-authors">
-            <span class="label">Top contributor:</span>
-            <div class="author-tags">
-              <span class="author-tag" *ngFor="let author of dept.authors.slice(0, 1)">
-                {{ author.name }}
-              </span>
+              <!-- Mini breakdown of publication types -->
+              <div class="mini-breakdown" *ngIf="dept.publicationTypes">
+                <div class="breakdown-item" *ngFor="let cat of publicationCategories.slice(0, 4)">
+                  <span class="breakdown-dot" [class]="cat.toLowerCase().replace(' ', '-')"></span>
+                  <span class="breakdown-lbl">{{ cat.substring(0, 3) }}:</span>
+                  <span class="breakdown-val font-semibold">{{ dept.publicationTypes[cat] || 0 }}</span>
+                </div>
+                <div class="breakdown-item more-item" *ngIf="dept.publicationTypes['Book Chapters'] + dept.publicationTypes['Other Publications'] > 0">
+                  <span class="breakdown-dot other"></span>
+                  <span class="breakdown-lbl">Others:</span>
+                  <span class="breakdown-val font-semibold">
+                    {{ (dept.publicationTypes['Book Chapters'] || 0) + (dept.publicationTypes['Other Publications'] || 0) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <button class="view-details-btn text-xs font-semibold" (click)="openDetails(dept)">
+                <span>Drill Down Details</span>
+                <span class="material-icons">arrow_forward</span>
+              </button>
             </div>
           </div>
-          <button class="view-details-btn" (click)="openDetails(dept)">
-            View Details
-            <span class="material-icons">open_in_new</span>
-          </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </ng-container>
   </div>
 
-  <!-- Detail Modal -->
-  <div class="modal-overlay" *ngIf="selectedDept" (click)="closeDetails()">
-    <div class="modal-card" (click)="$event.stopPropagation()">
+  <!-- Detail Drill-Down View (Full-screen overlay/modal with table and charts) -->
+  <div class="modal-overlay animate-fade-in" *ngIf="selectedDept" (click)="closeDetails()">
+    <div class="modal-card glass" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-header-info">
+          <span class="dept-label-accent">Departmental Drill Down</span>
           <h2>{{ selectedDept.department }}</h2>
-          <p>Detailed Research Breakdown</p>
+          <p>Detailed publications registry and researcher analytics</p>
         </div>
         <button class="close-modal-btn" (click)="closeDetails()">
           <span class="material-icons">close</span>
         </button>
       </div>
 
-      <div class="modal-tabs">
-        <button [class.active]="activeTab === 'authors'" (click)="setTab('authors')">
-          <span class="material-icons">people</span> Authors
+      <div class="modal-tabs-wrapper">
+        <div class="modal-tabs">
+          <button [class.active]="activeTab === 'papers'" (click)="setTab('papers')">
+            <span class="material-icons">article</span> Publications ({{ modalData.papers.length }})
+          </button>
+          <button [class.active]="activeTab === 'authors'" (click)="setTab('authors')">
+            <span class="material-icons">groups</span> Active Researchers ({{ modalData.authors.length }})
+          </button>
+        </div>
+        
+        <!-- Local Search inside Drill Down -->
+        <div class="local-search-wrapper" *ngIf="activeTab === 'papers'">
+          <span class="material-icons local-search-icon">search</span>
+          <input 
+            type="text" 
+            [(ngModel)]="searchTermPapers" 
+            placeholder="Search papers by title, author, source..." 
+            class="local-search-field"
+          >
+        </div>
+      </div>
+
+      <!-- Publication Categories Sub-Filters (Tabs/Badges) -->
+      <div class="category-filters-container" *ngIf="activeTab === 'papers' && !modalData.loading && !modalData.error">
+        <button class="cat-filter-btn" 
+                [class.active]="selectedTypeFilter === 'All'" 
+                (click)="setTypeFilter('All')">
+          All ({{ modalData.papers.length }})
         </button>
-        <button [class.active]="activeTab === 'papers'" (click)="setTab('papers')">
-          <span class="material-icons">description</span> Papers
+        <button class="cat-filter-btn" 
+                *ngFor="let cat of publicationCategories"
+                [class.active]="selectedTypeFilter === cat"
+                (click)="setTypeFilter(cat)">
+          {{ cat }} ({{ selectedDept.publicationTypes[cat] || 0 }})
         </button>
       </div>
 
       <div class="modal-content">
         <!-- Loading State -->
         <div class="modal-loader-container" *ngIf="modalData.loading">
-          <div class="small-loader"></div>
-          <p>Retrieving database records...</p>
+          <div class="spinner-dual"></div>
+          <p>Loading publication records from database...</p>
         </div>
 
         <!-- Error State -->
@@ -152,35 +229,75 @@
           <p>{{ modalData.error }}</p>
         </div>
 
-        <!-- Authors List -->
-        <div class="modal-list scroll-container" *ngIf="!modalData.loading && activeTab === 'authors'">
-          <div class="modal-list-item" *ngFor="let author of modalData.authors">
-            <div class="item-main">
-              <span class="item-name">{{ author.name }}</span>
-              <span class="item-meta">Scopus ID: {{ author.scopusId }}</span>
-            </div>
-            <div class="item-stats">
-              <span class="paper-badge">{{ author.paperCount }} papers</span>
-            </div>
+        <!-- Papers Table / List -->
+        <div class="papers-table-wrapper scroll-container" *ngIf="!modalData.loading && activeTab === 'papers' && !modalData.error">
+          <table class="papers-table" *ngIf="filteredModalPapers.length > 0">
+            <thead>
+              <tr>
+                <th style="width: 45%;">Paper Title</th>
+                <th style="width: 25%;">Authors</th>
+                <th style="width: 15%;">Source</th>
+                <th style="width: 8%; text-align: center;">Year</th>
+                <th style="width: 7%; text-align: center;">Citations</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let paper of filteredModalPapers">
+                <td class="paper-title-col">
+                  <div class="title-container">
+                    <span class="paper-type-badge text-xs" [class]="paper.paperType.toLowerCase().replace(' ', '-')">
+                      {{ paper.paperType }}
+                    </span>
+                    <span class="title-text">{{ paper.title }}</span>
+                    <div class="title-links" *ngIf="paper.doi || paper.link">
+                      <a *ngIf="paper.doi" [href]="'https://doi.org/' + paper.doi" target="_blank" class="doi-link font-semibold text-xs">
+                        <span class="material-icons text-xs">link</span> DOI: {{ paper.doi }}
+                      </a>
+                      <a *ngIf="paper.link && !paper.doi" [href]="paper.link" target="_blank" class="doi-link font-semibold text-xs">
+                        <span class="material-icons text-xs">open_in_new</span> Link
+                      </a>
+                    </div>
+                  </div>
+                </td>
+                <td class="authors-col text-sm">{{ paper.authors }}</td>
+                <td class="journal-col text-sm font-medium">{{ paper.journal }}</td>
+                <td class="year-col text-sm text-center">{{ paper.year }}</td>
+                <td class="citations-col text-sm text-center">
+                  <span class="cite-badge font-bold" [class.high-cite]="paper.citedBy > 10">
+                    {{ paper.citedBy }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="no-results" *ngIf="filteredModalPapers.length === 0 && !modalData.loading">
+            <span class="material-icons">info_outline</span>
+            <p>No publication records found matching the selected type filter or search query.</p>
           </div>
         </div>
 
-        <!-- Papers List -->
-        <div class="modal-list scroll-container" *ngIf="!modalData.loading && activeTab === 'papers'">
-          <div class="modal-list-item paper-item" *ngFor="let paper of modalData.papers">
-            <div class="item-main">
-              <span class="item-name">{{ paper.title }}</span>
-              <span class="item-meta">{{ paper.authors }} • {{ paper.year }} • {{ paper.journal }}</span>
+        <!-- Authors Contributions List -->
+        <div class="authors-list scroll-container" *ngIf="!modalData.loading && activeTab === 'authors' && !modalData.error">
+          <div class="author-contribution-card glass" *ngFor="let author of modalData.authors; let idx = index">
+            <div class="author-rank">#{{ idx + 1 }}</div>
+            <div class="author-info">
+              <span class="author-name font-bold">{{ author.name }}</span>
+              <span class="author-scopus text-xs" *ngIf="author.scopusId">Scopus ID: {{ author.scopusId }}</span>
+            </div>
+            <div class="author-stats">
+              <span class="contrib-badge">{{ author.paperCount }} Publications</span>
             </div>
           </div>
-          <div class="no-results" *ngIf="modalData.papers.length === 0 && !modalData.loading">
-            No publication records found for this department.
+          <div class="no-results" *ngIf="modalData.authors.length === 0 && !modalData.loading">
+            <span class="material-icons">info_outline</span>
+            <p>No author contributions recorded for this department.</p>
           </div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <p class="data-source">Powered by Scopus Registry • Sync status: <span class="status-live">Live</span></p>
+        <p class="data-source">Source: Scopus Citation Database • Realtime dynamic aggregation</p>
       </div>
     </div>
   </div>

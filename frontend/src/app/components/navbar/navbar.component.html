@@ -33,6 +33,8 @@
                 *ngIf="user">Authors List</a>
             <a routerLink="/department-counter" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
                 *ngIf="user">Dept Counter</a>
+            <a routerLink="/h-index-analytics" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
+                *ngIf="user">H-Index Analytics</a>
             <a routerLink="/teacher-statistics" class="nav-link" routerLinkActive="active" (click)="closeMenu()"
                 *ngIf="!user || (user.role !== 'Professor' || user.designation !== 'Other')">Teacher
                 Stats</a>

@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { PaperService } from '../../services/paper.service';
 import { Chart, registerables } from 'chart.js';
 import { Subject, of } from 'rxjs';
@@ -112,6 +113,7 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
 
     constructor(
         private paperService: PaperService,
+        private route: ActivatedRoute,
         private cdr: ChangeDetectorRef
     ) { }
 
@@ -136,6 +138,15 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
         });
 
+        // Check for _id query parameter to load author details directly
+        this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(params => {
+            const authorName = params['_id'];
+            if (authorName) {
+                this.searchQuery = authorName;
+                this.viewStats(authorName);
+            }
+        });
+
         // Simple delay to ensure smooth transition and show loader
         setTimeout(() => {
             this.isLoading = false;
@@ -158,7 +169,8 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
     selectSuggestion(author: AuthorStat): void {
         this.searchQuery = author._id;
         this.showSuggestions = false;
-        this.search();
+        this.authors = [author]; // Instantly populate the grid with the selected author
+        this.viewStats(author._id);
     }
 
     @HostListener('document:click', ['$event'])
@@ -172,17 +184,29 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
 
     search(): void {
         if (!this.searchQuery.trim()) return;
+        const queryStr = this.searchQuery.trim();
         this.loadingMessage = 'Searching authors...';
         this.isLoading = true;
         this.hasSearched = false;
         this.selectedAuthor = null;
         this.authors = [];
 
-        this.paperService.searchAuthors(this.searchQuery).subscribe({
+        this.paperService.searchAuthors(queryStr).subscribe({
             next: (data) => {
                 this.authors = data;
                 this.isLoading = false;
                 this.hasSearched = true;
+
+                if (data && data.length > 0) {
+                    // Check if there is an exact case-insensitive match for the query name
+                    const exactMatch = data.find(author => author._id.toLowerCase() === queryStr.toLowerCase());
+                    if (exactMatch) {
+                        this.viewStats(exactMatch._id);
+                    } else if (data.length === 1) {
+                        // Or if there is only 1 result returned
+                        this.viewStats(data[0]._id);
+                    }
+                }
                 this.cdr.markForCheck();
             },
             error: (err) => {

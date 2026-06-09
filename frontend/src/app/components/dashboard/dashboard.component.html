@@ -189,8 +189,23 @@
 
   <!-- Dashboard Content -->
   <div *ngIf="analyticsData && !isLoading && !isPersonalDash" class="dashboard-content">
-    <!-- Summary Stats -->
-    <div class="kpi-grid">
+
+    <!-- Tab Navigation Bar -->
+    <div class="dashboard-tabs">
+      <button class="d-tab-btn" [class.active]="activeDashboardTab === 'overview'" (click)="switchDashboardTab('overview')">
+        <span class="material-icons">dashboard</span>
+        General Overview
+      </button>
+      <button class="d-tab-btn" [class.active]="activeDashboardTab === 'quartiles'" (click)="switchDashboardTab('quartiles')">
+        <span class="material-icons">stars</span>
+        Journal Quality (Quartiles)
+      </button>
+    </div>
+
+    <!-- General Overview Pane -->
+    <div *ngIf="activeDashboardTab === 'overview'" class="tab-pane-content">
+      <!-- Summary Stats -->
+      <div class="kpi-grid">
 
       <!-- Total Papers -->
       <div class="kpi-card kpi-blue" style="cursor: pointer;" (click)="openBreakdownModal()" title="View Publication Breakdown">
@@ -670,8 +685,346 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
+    </div> <!-- End General Overview Pane -->
+
+    <!-- Journal Quality (Quartiles) Pane -->
+    <div *ngIf="activeDashboardTab === 'quartiles'" class="tab-pane-content animate-fade-in">
+      
+      <!-- 1. KPI Cards Grid -->
+      <div class="q-kpi-grid">
+        <!-- Q1 Publications -->
+        <div class="q-kpi-card q-c-q1" [class.filter-active]="activeQuartileFilter === 'Q1'" (click)="filterQuartilePapers('Q1')" title="Filter papers by Q1 category">
+          <div class="q-kpi-header">
+            <span class="q-kpi-badge q-b-q1">Q1</span>
+            <span class="q-kpi-icon material-icons">emoji_events</span>
+          </div>
+          <div class="q-kpi-value">{{ getQuartileCount('Q1') || 0 }}</div>
+          <div class="q-kpi-label">Top Tier Journals</div>
+          <div class="q-kpi-desc">Highest impact publications</div>
+        </div>
+
+        <!-- Q2 Publications -->
+        <div class="q-kpi-card q-c-q2" [class.filter-active]="activeQuartileFilter === 'Q2'" (click)="filterQuartilePapers('Q2')" title="Filter papers by Q2 category">
+          <div class="q-kpi-header">
+            <span class="q-kpi-badge q-b-q2">Q2</span>
+            <span class="q-kpi-icon material-icons">workspace_premium</span>
+          </div>
+          <div class="q-kpi-value">{{ getQuartileCount('Q2') || 0 }}</div>
+          <div class="q-kpi-label">High Tier Journals</div>
+          <div class="q-kpi-desc">High quality publications</div>
+        </div>
+
+        <!-- Q3 Publications -->
+        <div class="q-kpi-card q-c-q3" [class.filter-active]="activeQuartileFilter === 'Q3'" (click)="filterQuartilePapers('Q3')" title="Filter papers by Q3 category">
+          <div class="q-kpi-header">
+            <span class="q-kpi-badge q-b-q3">Q3</span>
+            <span class="q-kpi-icon material-icons">stars</span>
+          </div>
+          <div class="q-kpi-value">{{ getQuartileCount('Q3') || 0 }}</div>
+          <div class="q-kpi-label">Mid Tier Journals</div>
+          <div class="q-kpi-desc">Medium impact publications</div>
+        </div>
+
+        <!-- Q4 Publications -->
+        <div class="q-kpi-card q-c-q4" [class.filter-active]="activeQuartileFilter === 'Q4'" (click)="filterQuartilePapers('Q4')" title="Filter papers by Q4 category">
+          <div class="q-kpi-header">
+            <span class="q-kpi-badge q-b-q4">Q4</span>
+            <span class="q-kpi-icon material-icons">military_tech</span>
+          </div>
+          <div class="q-kpi-value">{{ getQuartileCount('Q4') || 0 }}</div>
+          <div class="q-kpi-label">Lower Mid Tier</div>
+          <div class="q-kpi-desc">Indexed standard journals</div>
+        </div>
+
+        <!-- Others / NA Publications -->
+        <div class="q-kpi-card q-c-na" [class.filter-active]="activeQuartileFilter === 'NA'" (click)="filterQuartilePapers('NA')" title="Filter papers by Non-Indexed category">
+          <div class="q-kpi-header">
+            <span class="q-kpi-badge q-b-na">Others</span>
+            <span class="q-kpi-icon material-icons">help_outline</span>
+          </div>
+          <div class="q-kpi-value">{{ getQuartileCount('NA') || 0 }}</div>
+          <div class="q-kpi-label">Others / Non-Indexed</div>
+          <div class="q-kpi-desc">Other publication sources</div>
+        </div>
+
+        <!-- High-Quality Journal Ratio -->
+        <div class="q-kpi-card q-c-ratio">
+          <div class="q-kpi-header">
+            <span class="q-kpi-badge q-b-ratio">Q1/Q2 Ratio</span>
+            <span class="q-kpi-icon material-icons">percent</span>
+          </div>
+          <div class="q-kpi-value">{{ getHqRatio() }}%</div>
+          <div class="q-kpi-label">High-Quality Output</div>
+          <div class="q-kpi-desc">Proportion of Q1 and Q2 papers</div>
+        </div>
+      </div>
+
+      <!-- 2. Charts Layout (University-Level vs Department-Level) -->
+      <div class="q-charts-grid" [class.single-col]="selectedDept">
+        <!-- Donut Distribution Chart -->
+        <div class="premium-card q-chart-card">
+          <div class="pcard-header">
+            <div class="pcard-icon-wrap distribution-icon">
+              <span class="material-icons">pie_chart</span>
+            </div>
+            <div>
+              <h2 class="pcard-title">Quartile Percentage Distribution</h2>
+              <p class="pcard-subtitle">{{ selectedDept || 'University-wide' }} journal category breakdown</p>
+            </div>
+          </div>
+          <div class="chart-container-md" style="height: 280px; position: relative;">
+            <canvas *ngIf="!selectedDept" #overallQuartileDistCanvas></canvas>
+            <canvas *ngIf="selectedDept" #deptQuartileDistCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Yearly Trends Chart -->
+        <div class="premium-card q-chart-card" [style.grid-column]="selectedDept ? 'auto' : 'span 2'">
+          <div class="pcard-header">
+            <div class="pcard-icon-wrap trends-icon">
+              <span class="material-icons">show_chart</span>
+            </div>
+            <div>
+              <h2 class="pcard-title">Yearly Quartile Trends</h2>
+              <p class="pcard-subtitle">{{ selectedDept || 'University-wide' }} research growth by journal category</p>
+            </div>
+          </div>
+          <div class="chart-container-md" style="height: 280px; position: relative;">
+            <canvas #quartileYearlyTrendCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Department Stacked Comparison Chart (University-Level only) -->
+        <div class="premium-card q-chart-card" style="grid-column: span 3;" *ngIf="!selectedDept">
+          <div class="pcard-header">
+            <div class="pcard-icon-wrap comparison-icon">
+              <span class="material-icons">bar_chart</span>
+            </div>
+            <div>
+              <h2 class="pcard-title">Department-wise Quartile Comparison</h2>
+              <p class="pcard-subtitle">Research output quality across academic units (Top 15 Departments)</p>
+            </div>
+            <div class="compare-toggle-tabs" style="margin-left: auto;">
+              <button [class.active]="quartileCompareMode === 'percentage'" (click)="setQuartileCompareMode('percentage')">Normalized %</button>
+              <button [class.active]="quartileCompareMode === 'absolute'" (click)="setQuartileCompareMode('absolute')">Absolute Count</button>
+            </div>
+          </div>
+          <div class="chart-container-md" style="height: 380px; position: relative;">
+            <canvas #deptQuartilesCompareCanvas></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Table/Rankings section (University-Level Department Rankings) -->
+      <div class="premium-card q-rankings-card" *ngIf="!selectedDept">
+        <div class="pcard-header">
+          <div class="pcard-icon-wrap table-icon">
+            <span class="material-icons">leaderboard</span>
+          </div>
+          <div>
+            <h2 class="pcard-title">Academic Units Quality Ranking</h2>
+            <p class="pcard-subtitle">Departments ranked by Q1 journal publication volume</p>
+          </div>
+          <button class="q-download-btn" (click)="downloadQuartileStatsCSV()" style="margin-left: auto;">
+            <span class="material-icons">download</span>
+            Download Quartile Report
+          </button>
+        </div>
+        <div class="q-table-container">
+          <table class="q-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Department</th>
+                <th>Q1 Papers</th>
+                <th>Q2 Papers</th>
+                <th>Q3 Papers</th>
+                <th>Q4 Papers</th>
+                <th>Others</th>
+                <th>Total Papers</th>
+                <th>Q1 Ratio (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let dept of getSortedDeptsByQ1(); let i = index">
+                <td class="q-rank-cell">{{ i + 1 }}</td>
+                <td class="q-dept-cell clickable" (click)="filterByDept(dept.department)">
+                  <span class="material-icons dept-business-icon">business</span>
+                  {{ dept.department }}
+                </td>
+                <td class="q-count-cell q-q1-val">{{ dept.quartiles?.Q1 || 0 }}</td>
+                <td class="q-count-cell q-q2-val">{{ dept.quartiles?.Q2 || 0 }}</td>
+                <td class="q-count-cell q-q3-val">{{ dept.quartiles?.Q3 || 0 }}</td>
+                <td class="q-count-cell q-q4-val">{{ dept.quartiles?.Q4 || 0 }}</td>
+                <td class="q-count-cell q-na-val">{{ dept.quartiles?.NA || 0 }}</td>
+                <td class="q-total-cell">{{ dept.paperCount }}</td>
+                <td class="q-ratio-cell">
+                  <div class="q-ratio-progress-bar">
+                    <div class="q-ratio-fill" [style.width.%]="dept.paperCount > 0 ? ((dept.quartiles?.Q1 || 0) / dept.paperCount * 100) : 0"></div>
+                  </div>
+                  <span class="q-ratio-text">{{ dept.paperCount > 0 ? (((dept.quartiles?.Q1 || 0) / dept.paperCount * 100) | number:'1.1-1') : '0.0' }}%</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. Department-Level Benchmark & Leaderboard (Department-Level only) -->
+      <div class="q-dept-widgets-grid" *ngIf="selectedDept">
+        <!-- Department Quality Benchmark Against University -->
+        <div class="premium-card q-benchmark-card">
+          <div class="pcard-header">
+            <div class="pcard-icon-wrap benchmark-icon">
+              <span class="material-icons">speed</span>
+            </div>
+            <div>
+              <h2 class="pcard-title">Department Quality Benchmarking</h2>
+              <p class="pcard-subtitle">Comparison against the university average metrics</p>
+            </div>
+          </div>
+          <div class="q-benchmark-body">
+            <div class="q-bench-row">
+              <div class="q-bench-label">Q1 Ratio (Top Journals)</div>
+              <div class="q-bench-metrics">
+                <span class="q-dept-metric">Dept: {{ getQuartileRatio('Q1') }}%</span>
+                <span class="q-univ-metric">Univ Avg: {{ getUnivAvgRatio('Q1') }}%</span>
+              </div>
+              <div class="q-bench-progress">
+                <div class="q-bench-fill dept-fill" [style.width.%]="getQuartileRatio('Q1')"></div>
+                <div class="q-bench-fill univ-fill" [style.left.%]="getUnivAvgRatio('Q1')"></div>
+              </div>
+            </div>
+
+            <div class="q-bench-row">
+              <div class="q-bench-label">Q2 Ratio (High Quality)</div>
+              <div class="q-bench-metrics">
+                <span class="q-dept-metric">Dept: {{ getQuartileRatio('Q2') }}%</span>
+                <span class="q-univ-metric">Univ Avg: {{ getUnivAvgRatio('Q2') }}%</span>
+              </div>
+              <div class="q-bench-progress">
+                <div class="q-bench-fill dept-fill q-fill-q2" [style.width.%]="getQuartileRatio('Q2')"></div>
+                <div class="q-bench-fill univ-fill" [style.left.%]="getUnivAvgRatio('Q2')"></div>
+              </div>
+            </div>
+
+            <div class="q-bench-row">
+              <div class="q-bench-label">Overall High-Quality Ratio (Q1+Q2)</div>
+              <div class="q-bench-metrics">
+                <span class="q-dept-metric">Dept: {{ getHqRatio() }}%</span>
+                <span class="q-univ-metric">Univ Avg: {{ getUnivAvgRatio('HQ') }}%</span>
+              </div>
+              <div class="q-bench-progress">
+                <div class="q-bench-fill dept-fill q-fill-ratio" [style.width.%]="getHqRatio()"></div>
+                <div class="q-bench-fill univ-fill" [style.left.%]="getUnivAvgRatio('HQ')"></div>
+              </div>
+            </div>
+            
+            <div class="q-benchmark-footer">
+              <span class="material-icons info-icon">info</span>
+              <span>Vertical lines indicate the university-wide average standard.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Faculty Publication Quality Leaderboard -->
+        <div class="premium-card q-leaderboard-card">
+          <div class="pcard-header">
+            <div class="pcard-icon-wrap leaderboard-icon">
+              <span class="material-icons">grade</span>
+            </div>
+            <div>
+              <h2 class="pcard-title">Department Quality Leaderboard</h2>
+              <p class="pcard-subtitle">Top faculty ranked by Q1/Q2 publications</p>
+            </div>
+          </div>
+          <div class="q-leaderboard-list">
+            <div class="q-leaderboard-row" *ngFor="let author of (getDeptAuthorsSortedByQuality() | slice:0:5); let i = index">
+              <div class="q-leader-rank" [class.rank-gold]="i===0" [class.rank-silver]="i===1" [class.rank-bronze]="i===2">
+                {{ i + 1 }}
+              </div>
+              <div class="q-leader-avatar">
+                {{ author.name.charAt(0) }}
+              </div>
+              <div class="q-leader-info">
+                <div class="q-leader-name">{{ author.name | authorName }}</div>
+                <div class="q-leader-badges">
+                  <span class="q-badge q-q1-badge" *ngIf="author.q1Count">{{ author.q1Count }} Q1</span>
+                  <span class="q-badge q-q2-badge" *ngIf="author.q2Count">{{ author.q2Count }} Q2</span>
+                  <span class="q-badge q-other-badge" *ngIf="author.otherCount">{{ author.otherCount }} Others</span>
+                </div>
+              </div>
+              <div class="q-leader-score">
+                <span class="score-value">{{ author.q1Count + author.q2Count }}</span>
+                <span class="score-label">Q1/Q2 Papers</span>
+              </div>
+            </div>
+            <div class="q-empty-leaderboard" *ngIf="!getDeptAuthorsSortedByQuality()?.length">
+              No faculty quality publication stats found in this department.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Interactive Papers Table -->
+      <div class="premium-card q-papers-table-card">
+        <div class="pcard-header flex-column-mobile">
+          <div class="pcard-icon-wrap papers-icon">
+            <span class="material-icons">description</span>
+          </div>
+          <div>
+            <h2 class="pcard-title">Filtered Publications List</h2>
+            <p class="pcard-subtitle">
+              Showing {{ filteredQuartilePapers.length }} papers
+              <span *ngIf="activeQuartileFilter" class="active-q-badge" [attr.data-q]="activeQuartileFilter">Filtered: {{ activeQuartileFilter }}</span>
+            </p>
+          </div>
+          
+          <div class="q-table-actions flex-wrap-mobile">
+            <div class="q-search-box">
+              <span class="material-icons search-icon">search</span>
+              <input type="text" placeholder="Search title, author, source, DOI..." [(ngModel)]="quartileSearchQuery">
+            </div>
+            
+            <button class="clear-q-filter-btn" *ngIf="activeQuartileFilter" (click)="filterQuartilePapers(null)">
+              Clear Quartile Filter
+            </button>
+          </div>
+        </div>
+
+        <div class="q-papers-list-scroll">
+          <div class="q-paper-row animate-fade-in" *ngFor="let paper of filteredQuartilePapers">
+            <div class="q-paper-left">
+              <span class="q-paper-quartile-badge" [attr.data-q]="paper.quartile || 'NA'">{{ paper.quartile || 'NA' }}</span>
+              <span class="q-paper-citations" *ngIf="paper.citedBy">⭐ {{ paper.citedBy }} citations</span>
+            </div>
+            <div class="q-paper-body">
+              <h4 class="q-paper-title">
+                <a *ngIf="paper.link || paper.doi" [href]="paper.link || 'https://doi.org/' + paper.doi" target="_blank">{{ paper.paperTitle }}</a>
+                <span *ngIf="!paper.link && !paper.doi">{{ paper.paperTitle }}</span>
+              </h4>
+              <div class="q-paper-authors" *ngIf="paper.authors?.length">
+                <span class="material-icons">people</span>
+                <span>{{ getAuthorNamesString(paper.authors) }}</span>
+              </div>
+              <div class="q-paper-meta">
+                <span class="q-meta-item" *ngIf="paper.year"><span class="material-icons">calendar_today</span>{{ paper.year }}</span>
+                <span class="q-meta-item" *ngIf="paper.sourcePaper"><span class="material-icons">menu_book</span>{{ paper.sourcePaper }}</span>
+                <span class="q-meta-item" *ngIf="paper.paperType"><span class="material-icons">label</span>{{ paper.paperType }}</span>
+                <span class="q-meta-item" *ngIf="paper.doi"><span class="material-icons">link</span>DOI: {{ paper.doi }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="q-empty-papers" *ngIf="filteredQuartilePapers.length === 0">
+            <span class="material-icons">info_outline</span>
+            <p>No papers match the selected filters and search query.</p>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- End Quartiles Pane -->
+  </div> <!-- End dashboard-content -->
 
 <!-- ========================================== -->
 <!-- ── FULL-PAGE DRIBBBLE PERSONAL DASHBOARD ── -->
