@@ -217,7 +217,7 @@
       </div>
 
       <!-- Unique Authors -->
-      <div class="kpi-card kpi-green">
+      <div class="kpi-card kpi-green" style="cursor: pointer;" (click)="openAuthorsAnalyticsModal()" title="View Authors Analytics">
         <div class="kpi-glow"></div>
         <div class="kpi-top">
           <div class="kpi-icon-wrap">
@@ -237,6 +237,7 @@
         <div class="kpi-bar">
           <div class="kpi-bar-fill" style="width:72%"></div>
         </div>
+        <div class="kpi-see-more">Explore Authors →</div>
       </div>
 
       <!-- Departments -->
@@ -1340,6 +1341,184 @@
           </div>
           <div class="empty-list" *ngIf="breakdownPapers.length === 0" style="text-align: center; padding: 2rem;">
             No publications found for this category and year.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Unique Authors Analytics Modal -->
+<div class="modal-backdrop authors-analytics-modal-backdrop" *ngIf="showAuthorsAnalyticsModal" (click)="closeAuthorsAnalyticsModal()">
+  <div class="modal-content authors-analytics-modal" (click)="$event.stopPropagation()">
+    <!-- Modal Header -->
+    <div class="modal-header">
+      <div class="header-title">
+        <span class="dept-badge-lg" style="background: linear-gradient(135deg, #10b981, #059669); font-size: 1.25rem;">👥</span>
+        <div>
+          <h3 style="font-family: 'Outfit', sans-serif; font-weight: 700; color: #1e293b;">Unique Institutional Authors Hub</h3>
+          <p style="margin: 0; font-size: 0.85rem; color: #94a3b8;">
+            Explore institutional faculty contributions, trends, and collaboration networks
+          </p>
+        </div>
+      </div>
+      <button class="close-btn" (click)="closeAuthorsAnalyticsModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="modal-body authors-modal-body">
+      <!-- Top Section: Interactive Charts -->
+      <div class="authors-charts-grid">
+        <!-- Participation Trend Chart -->
+        <div class="author-chart-card">
+          <h4 class="chart-card-title">Author Participation Trend</h4>
+          <p class="chart-card-subtitle">Active publishing unique authors per year</p>
+          <div class="author-chart-container">
+            <canvas #participationChartCanvas></canvas>
+          </div>
+        </div>
+
+        <!-- Productivity Distribution Chart -->
+        <div class="author-chart-card">
+          <h4 class="chart-card-title">Author Productivity Distribution</h4>
+          <p class="chart-card-subtitle">Number of authors grouped by publication volume</p>
+          <div class="author-chart-container">
+            <canvas #productivityChartCanvas></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Section: Split explorer -->
+      <div class="authors-explorer-split">
+        <!-- Left: Search and list -->
+        <div class="authors-list-panel">
+          <div class="authors-search-wrap">
+            <span class="material-icons search-icon">search</span>
+            <input type="text" placeholder="Search authors by name or dept..." [(ngModel)]="authorsSearchQuery">
+          </div>
+
+          <div class="authors-directory-list">
+            <div class="directory-author-row" 
+                 *ngFor="let author of filteredDirectoryAuthors"
+                 [class.active]="selectedAuthorData?.name === author.name"
+                 (click)="selectAuthor(author.name)">
+              <div class="da-avatar" [style.background]="'hsl(' + ((author.count * 15 + 180) % 360) + ', 60%, 50%)'">
+                {{ author.name.charAt(0) }}
+              </div>
+              <div class="da-details">
+                <span class="da-name">{{ author.name | authorName }}</span>
+                <span class="da-dept">{{ author.department }}</span>
+              </div>
+              <span class="da-count">{{ author.count }} papers</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Author details -->
+        <div class="author-detail-panel">
+          <!-- Loading State -->
+          <div class="author-detail-loading" *ngIf="isAuthorDataLoading">
+            <div class="mini-spinner"></div>
+            <span>Loading author stats...</span>
+          </div>
+
+          <!-- Empty State -->
+          <div class="author-detail-empty" *ngIf="!selectedAuthorData && !isAuthorDataLoading">
+            <span class="material-icons" style="font-size: 48px; color: #cbd5e1; margin-bottom: 1rem;">badge</span>
+            <p>Select an author from the directory to explore their research metrics, collaboration network, and publications history.</p>
+          </div>
+
+          <!-- Active Author Stats -->
+          <div class="author-profile-card" *ngIf="selectedAuthorData && !isAuthorDataLoading">
+            <!-- Header with name -->
+            <div class="apc-header">
+              <div class="apc-avatar">
+                {{ selectedAuthorData.name.charAt(0) }}
+              </div>
+              <div class="apc-meta">
+                <h4>{{ selectedAuthorData.name | authorName }}</h4>
+                <span class="apc-dept-badge">{{ selectedAuthorData.department }}</span>
+              </div>
+            </div>
+
+            <!-- Author Metrics -->
+            <div class="apc-metrics-grid">
+              <div class="apc-metric-card font-blue">
+                <span class="apc-m-value">{{ selectedAuthorData.totalPapers }}</span>
+                <span class="apc-m-label">Publications</span>
+              </div>
+              <div class="apc-metric-card font-emerald">
+                <span class="apc-m-value">{{ selectedAuthorData.totalCitations }}</span>
+                <span class="apc-m-label">Citations</span>
+              </div>
+              <div class="apc-metric-card font-amber">
+                <span class="apc-m-value">H-{{ selectedAuthorData.hIndex }}</span>
+                <span class="apc-m-label">H-Index</span>
+              </div>
+            </div>
+
+            <!-- Mini Trend Chart & Collaborators split -->
+            <div class="apc-mid-grid">
+              <div class="apc-personal-trend">
+                <h5 class="sub-section-title">Publication History</h5>
+                <div class="apc-chart-container">
+                  <canvas #authorPersonalChartCanvas></canvas>
+                </div>
+              </div>
+              
+              <!-- Collaborators -->
+              <div class="apc-collaborators">
+                <h5 class="sub-section-title">Key Collaborators</h5>
+                <div class="apc-collaborators-list">
+                  <div class="collab-item" *ngFor="let node of selectedAuthorData.collaborationNetwork?.nodes">
+                    <ng-container *ngIf="!node.isTarget">
+                      <div class="collab-avatar">
+                        {{ node.name?.charAt(0) }}
+                      </div>
+                      <div class="collab-details">
+                        <span class="collab-name">{{ node.name | authorName }}</span>
+                        <span class="collab-dept">{{ node.department }}</span>
+                      </div>
+                      <span class="collab-strength" title="Joint publications">
+                        🤝 {{ node.weight }}
+                      </span>
+                    </ng-container>
+                  </div>
+                  <div class="empty-list-sm" *ngIf="!selectedAuthorData.collaborationNetwork?.nodes || selectedAuthorData.collaborationNetwork.nodes.length <= 1">
+                    No co-authors found in database.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Publications list -->
+            <div class="apc-papers-section">
+              <h5 class="sub-section-title">Published Papers ({{ selectedAuthorData.papers?.length || 0 }})</h5>
+              <div class="apc-papers-scroll">
+                <div class="apc-paper-item" *ngFor="let paper of selectedAuthorData.papers; let idx = index">
+                  <span class="apc-paper-num">{{ idx + 1 }}</span>
+                  <div class="apc-paper-info">
+                    <a class="apc-paper-title" *ngIf="paper.link" [href]="paper.link" target="_blank">
+                      {{ paper.paperTitle || paper.title }} ↗
+                    </a>
+                    <span class="apc-paper-title no-link" *ngIf="!paper.link">
+                      {{ paper.paperTitle || paper.title }}
+                    </span>
+                    <div class="apc-paper-meta">
+                      <span class="apc-paper-year">{{ paper.year }}</span>
+                      <span class="apc-paper-journal" *ngIf="paper.sourcePaper || paper.source">{{ paper.sourcePaper || paper.source }}</span>
+                      <span class="apc-paper-cite" *ngIf="paper.citedBy">Cited by {{ paper.citedBy }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

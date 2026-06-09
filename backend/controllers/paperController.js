@@ -3649,6 +3649,26 @@ module.exports = {
         yearlyTypeBreakdown[y][type] = (yearlyTypeBreakdown[y][type] || 0) + 1;
       });
 
+      // Compute trends in author participation over time (unique authors per year)
+      const uniqueAuthorsPerYear = {};
+      deptFilteredPapersForBreakdown.forEach(p => {
+        const y = p.year;
+        if (!y) return;
+        if (!uniqueAuthorsPerYear[y]) {
+          uniqueAuthorsPerYear[y] = new Set();
+        }
+        (p.authors || []).forEach(a => {
+          if (a.isSharda === true) {
+            uniqueAuthorsPerYear[y].add(a.authorName.trim());
+          }
+        });
+      });
+
+      const authorParticipationTrend = Object.keys(uniqueAuthorsPerYear).map(y => ({
+        year: parseInt(y, 10),
+        count: uniqueAuthorsPerYear[y].size
+      })).sort((a, b) => a.year - b.year);
+
       const responsePayload = {
         totalPapers,
         totalAuthors,
@@ -3671,7 +3691,8 @@ module.exports = {
         yearWiseCitations,
         collaborationNetwork,
         keywordNetwork,
-        yearlyTypeBreakdown
+        yearlyTypeBreakdown,
+        authorParticipationTrend
       };
 
       analyticsCacheMap.set(queryKey, { timestamp: Date.now(), data: responsePayload });

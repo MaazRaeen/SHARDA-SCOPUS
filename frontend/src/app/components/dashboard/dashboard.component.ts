@@ -63,6 +63,7 @@ interface AnalyticsData {
     quartileDistribution?: { quartile: string, count: number }[];
     dateTrendData?: { label: string, count: number }[]; // NEW
     yearlyTypeBreakdown?: Record<string, Record<string, number>>;
+    authorParticipationTrend?: { year: number, count: number }[];
 }
 
 export interface PersonalStats {
@@ -135,6 +136,21 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     breakdownChart: Chart | null = null;
 
     @ViewChild('breakdownChartCanvas') breakdownChartCanvas!: ElementRef<HTMLCanvasElement>;
+
+    // Authors Analytics Modal State
+    showAuthorsAnalyticsModal: boolean = false;
+    authorsSearchQuery: string = '';
+    selectedAuthorData: any = null;
+    isAuthorDataLoading: boolean = false;
+
+    // Charts
+    participationTrendChart: Chart | null = null;
+    authorProductivityChart: Chart | null = null;
+    authorPersonalChart: Chart | null = null;
+
+    @ViewChild('participationChartCanvas') participationChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('productivityChartCanvas') productivityChartCanvas!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('authorPersonalChartCanvas') authorPersonalChartCanvas!: ElementRef<HTMLCanvasElement>;
 
     // Master Department Filter
     selectedDept: string = '';
@@ -643,6 +659,212 @@ export class DashboardComponent implements OnInit, AfterViewInit {
                 this.isBreakdownPapersLoading = false;
                 console.error('Error fetching breakdown papers:', err);
                 this.cdr.markForCheck();
+            }
+        });
+    }
+
+    // --- Authors Analytics Modal Methods ---
+    openAuthorsAnalyticsModal(): void {
+        if (!this.analyticsData) return;
+        this.showAuthorsAnalyticsModal = true;
+        this.authorsSearchQuery = '';
+        this.selectedAuthorData = null;
+        document.body.style.overflow = 'hidden';
+        this.cdr.markForCheck();
+
+        // Render charts inside the modal once the DOM is ready
+        setTimeout(() => {
+            this.initializeParticipationChart();
+            this.initializeProductivityChart();
+        }, 150);
+    }
+
+    closeAuthorsAnalyticsModal(): void {
+        this.showAuthorsAnalyticsModal = false;
+        document.body.style.overflow = 'auto';
+        
+        // Clean up charts
+        if (this.participationTrendChart) {
+            this.participationTrendChart.destroy();
+            this.participationTrendChart = null;
+        }
+        if (this.authorProductivityChart) {
+            this.authorProductivityChart.destroy();
+            this.authorProductivityChart = null;
+        }
+        if (this.authorPersonalChart) {
+            this.authorPersonalChart.destroy();
+            this.authorPersonalChart = null;
+        }
+        this.cdr.markForCheck();
+    }
+
+    get filteredDirectoryAuthors(): any[] {
+        if (!this.analyticsData?.allAuthors) return [];
+        if (!this.authorsSearchQuery.trim()) return this.analyticsData.allAuthors;
+        const q = this.authorsSearchQuery.toLowerCase().trim();
+        return this.analyticsData.allAuthors.filter((a: any) =>
+            (a.name || '').toLowerCase().includes(q) ||
+            (a.department || '').toLowerCase().includes(q)
+        );
+    }
+
+    initializeParticipationChart(): void {
+        if (!this.participationChartCanvas) return;
+        if (this.participationTrendChart) this.participationTrendChart.destroy();
+
+        const ctx = this.participationChartCanvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+
+        const trend = this.analyticsData?.authorParticipationTrend || [];
+        const labels = trend.map((t: any) => t.year);
+        const data = trend.map((t: any) => t.count);
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+        gradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+
+        this.participationTrendChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Active Authors',
+                    data: data,
+                    borderColor: '#10b981',
+                    backgroundColor: gradient,
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderColor: '#10b981',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    initializeProductivityChart(): void {
+        if (!this.productivityChartCanvas) return;
+        if (this.authorProductivityChart) this.authorProductivityChart.destroy();
+
+        const ctx = this.productivityChartCanvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+
+        const authors = this.analyticsData?.allAuthors || [];
+        const bins = {
+            '1 Paper': 0,
+            '2-5 Papers': 0,
+            '6-10 Papers': 0,
+            '11+ Papers': 0
+        };
+
+        authors.forEach((a: any) => {
+            const count = a.count || 0;
+            if (count === 1) bins['1 Paper']++;
+            else if (count >= 2 && count <= 5) bins['2-5 Papers']++;
+            else if (count >= 6 && count <= 10) bins['6-10 Papers']++;
+            else if (count > 10) bins['11+ Papers']++;
+        });
+
+        const labels = Object.keys(bins);
+        const data = Object.values(bins);
+
+        this.authorProductivityChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Number of Authors',
+                    data: data,
+                    backgroundColor: ['#60a5fa', '#34d399', '#fbbf24', '#f87171'],
+                    borderRadius: 6,
+                    barThickness: 20
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    selectAuthor(name: string): void {
+        this.isAuthorDataLoading = true;
+        this.selectedAuthorData = null;
+        this.cdr.markForCheck();
+
+        this.paperService.getAuthorStats(name).subscribe({
+            next: (res) => {
+                this.isAuthorDataLoading = false;
+                this.selectedAuthorData = res;
+                this.cdr.markForCheck();
+
+                setTimeout(() => {
+                    this.initializeAuthorPersonalChart();
+                }, 100);
+            },
+            error: (err) => {
+                this.isAuthorDataLoading = false;
+                console.error('Error fetching author stats:', err);
+                this.cdr.markForCheck();
+            }
+        });
+    }
+
+    initializeAuthorPersonalChart(): void {
+        if (!this.authorPersonalChartCanvas || !this.selectedAuthorData?.yearlyStats) return;
+        if (this.authorPersonalChart) this.authorPersonalChart.destroy();
+
+        const ctx = this.authorPersonalChartCanvas.nativeElement.getContext('2d');
+        if (!ctx) return;
+
+        const yearlyStats = this.selectedAuthorData.yearlyStats;
+        const years = Object.keys(yearlyStats).sort();
+        const data = years.map(y => yearlyStats[y]);
+
+        this.authorPersonalChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: years,
+                datasets: [{
+                    label: 'Publications',
+                    data: data,
+                    backgroundColor: 'rgba(99, 102, 241, 0.75)',
+                    borderRadius: 4,
+                    barThickness: 15
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
             }
         });
     }

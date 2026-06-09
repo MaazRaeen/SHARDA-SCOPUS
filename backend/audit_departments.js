@@ -6,7 +6,6 @@ const ShardaAuthor = require('./models/ShardaAuthor');
 const { matchNames, standardizeDepartment } = require('./utils/nameMatcher');
 
 const EXCEL_PATH = '/Users/arghadeep/Downloads/Sharda_copy-main 2/backend/uploads/Combined Faculty list.xlsx';
-
 async function audit() {
     try {
         await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/sharda_db');
