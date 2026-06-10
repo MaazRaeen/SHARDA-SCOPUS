@@ -593,6 +593,13 @@
     font-weight: 400;
 }
 
+.profile-scopus-id, .card-sid, .suggestion-sid {
+    color: rgba(165, 180, 252, 0.6);
+    font-weight: 500;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
 .profile-metrics {
     display: flex;
     gap: 0.75rem;
@@ -1085,4 +1092,140 @@
     padding: 2.5rem 1rem;
     color: var(--text-muted);
     font-size: 0.85rem;
+}
+
+/* ── Validation Alerts & Badging ── */
+.validation-banner {
+    margin: 1.5rem 2.5rem 0.5rem;
+    padding: 1rem 1.25rem;
+    border-radius: var(--radius-md);
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px dashed rgba(245, 158, 11, 0.3);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.validation-banner.success {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px dashed rgba(16, 185, 129, 0.25);
+}
+
+.banner-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.warning-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+}
+
+.banner-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: #fbd38d;
+    letter-spacing: -0.01em;
+}
+
+.validation-banner.success .banner-title {
+    color: #34d399;
+}
+
+.banner-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.warning-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.warning-list li {
+    margin-bottom: 0.2rem;
+}
+
+.warning-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* Sync status badge in profile header */
+.verified-sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 100px;
+    margin-left: 0.75rem;
+    vertical-align: middle;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+}
+
+.verified-sync-badge svg {
+    flex-shrink: 0;
+    stroke: currentColor;
+}
+
+.unverified-sync-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fbd38d;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 100px;
+    margin-left: 0.75rem;
+    vertical-align: middle;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+}
+
+/* Growth chart click actions */
+#yearChart {
+    cursor: pointer;
+}
+
+/* Clear Year selection button styling */
+.ts-clear-year {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-primary);
+    border-radius: 100px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: background 0.2s, border-color 0.2s;
+    margin-left: auto;
+}
+
+.ts-clear-year:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+.papers-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }

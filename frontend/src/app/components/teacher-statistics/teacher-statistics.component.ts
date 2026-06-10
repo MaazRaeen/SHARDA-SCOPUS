@@ -15,6 +15,7 @@ interface AuthorStat {
     department: string;
     paperCount: number;
     citationCount: number;
+    scopusId?: string;
 }
 
 interface DetailedStats {
@@ -23,6 +24,21 @@ interface DetailedStats {
     totalPapers: number;
     totalCitations: number;
     hIndex: number;
+    scopusId?: string;
+    coauthorCount?: number;
+    validation?: {
+        isValid: boolean;
+        warnings: string[];
+    };
+    officialProfile?: {
+        name: string;
+        scopusId?: string;
+        documentCount: number;
+        citationCount: number;
+        hIndex: number;
+        coauthorCount: number;
+        link?: string;
+    };
     yearlyStats: { [key: string]: number };
     quartiles: { Q1: number; Q2: number; Q3: number; Q4: number; NA: number };
     collaborationNetwork: {
@@ -38,6 +54,7 @@ interface DetailedStats {
         publisher?: string;
         link?: string;
         paperType?: string;
+        quartile?: string;
     }>;
 }
 
@@ -94,15 +111,64 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
             .sort((a, b) => b.count - a.count);
     }
 
+    get filteredTotalPapers(): number {
+        return this.filteredPapersByYear.length;
+    }
+
+    get filteredTotalCitations(): number {
+        return this.filteredPapersByYear.reduce((sum, p) => sum + (p.citedBy || 0), 0);
+    }
+
+    get filteredHIndex(): number {
+        const citations = this.filteredPapersByYear.map(p => p.citedBy || 0).sort((a, b) => b - a);
+        let hIndex = 0;
+        for (let i = 0; i < citations.length; i++) {
+            if (citations[i] >= i + 1) {
+                hIndex = i + 1;
+            } else {
+                break;
+            }
+        }
+        return hIndex;
+    }
+
+    get filteredQuartiles(): { Q1: number; Q2: number; Q3: number; Q4: number; NA: number } {
+        const quartiles = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 };
+        this.filteredPapersByYear.forEach(p => {
+            const q = (p.quartile || 'NA').toUpperCase().trim();
+            if (['Q1', 'Q2', 'Q3', 'Q4'].includes(q)) {
+                quartiles[q as keyof typeof quartiles]++;
+            } else {
+                quartiles.NA++;
+            }
+        });
+        return quartiles;
+    }
+
+    get computedYearlyStats(): { [key: string]: number } {
+        if (!this.selectedAuthor) return {};
+        let papers = this.selectedAuthor.papers;
+        if (this.activeTeacherPaperType) {
+            papers = papers.filter(p => (p.paperType || 'Unknown') === this.activeTeacherPaperType);
+        }
+        const stats: { [key: string]: number } = {};
+        papers.forEach(p => {
+            const y = p.year || 'Unknown';
+            stats[y] = (stats[y] || 0) + 1;
+        });
+        return stats;
+    }
+
     selectYear(year: number | null): void {
         this.selectedYear = this.selectedYear === year ? null : year;
-        this.activeTeacherPaperType = '';
         this.cdr.markForCheck();
+        setTimeout(() => this.renderChart(), 0);
     }
 
     selectTeacherPaperType(type: string): void {
         this.activeTeacherPaperType = this.activeTeacherPaperType === type ? '' : type;
         this.cdr.markForCheck();
+        setTimeout(() => this.renderChart(), 0);
     }
 
     // Suggestions state
@@ -170,7 +236,7 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
         this.searchQuery = author._id;
         this.showSuggestions = false;
         this.authors = [author]; // Instantly populate the grid with the selected author
-        this.viewStats(author._id);
+        this.viewStats(author.scopusId || author._id);
     }
 
     @HostListener('document:click', ['$event'])
@@ -190,6 +256,12 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
         this.hasSearched = false;
         this.selectedAuthor = null;
         this.authors = [];
+
+        // Check if query is a numeric Scopus ID
+        if (/^\d{5,15}$/.test(queryStr)) {
+            this.viewStats(queryStr);
+            return;
+        }
 
         this.paperService.searchAuthors(queryStr).subscribe({
             next: (data) => {
@@ -277,8 +349,9 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
 
         this.destroyChart();
 
-        const years = Object.keys(this.selectedAuthor.yearlyStats).sort();
-        const counts = years.map(y => this.selectedAuthor!.yearlyStats[y]);
+        const yearlyStats = this.computedYearlyStats;
+        const years = Object.keys(yearlyStats).sort();
+        const counts = years.map(y => yearlyStats[y]);
 
         this.chart = new Chart(ctx, {
             type: 'bar',
@@ -287,9 +360,13 @@ export class TeacherStatisticsComponent implements OnInit, OnDestroy {
                 datasets: [{
                     label: 'Papers',
                     data: counts,
-                    backgroundColor: years.map((_, i) =>
-                        `rgba(${99 + i * 5}, ${102 + i * 3}, 241, 0.7)`
-                    ),
+                    backgroundColor: years.map(y => {
+                        const isSelected = this.selectedYear === parseInt(y, 10);
+                        if (this.selectedYear === null) {
+                            return 'rgba(99, 102, 241, 0.7)';
+                        }
+                        return isSelected ? 'rgba(99, 102, 241, 0.95)' : 'rgba(99, 102, 241, 0.2)';
+                    }),
                     borderColor: 'rgba(129, 140, 248, 1)',
                     borderWidth: 1.5,
                     borderRadius: 6,

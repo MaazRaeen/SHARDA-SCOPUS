@@ -1614,19 +1614,26 @@ module.exports = {
       const { q } = req.query;
       if (!q) return res.json([]);
 
+      const isScopusId = /^\d{5,15}$/.test(q);
+      const matchStage = isScopusId 
+        ? { scopusId: q }
+        : { authorName: { $regex: q, $options: 'i' } };
+
       // Aggregate designed to find unique authors matching the query
       // and sort them by total paper count descending
       const authors = await ShardaAuthor.aggregate([
         {
-          $match: {
-            authorName: { $regex: q, $options: 'i' }
-          }
+          $match: matchStage
         },
         {
           $group: {
-            _id: { $toLower: "$authorName" },
+            _id: { 
+              name: { $toLower: "$authorName" }, 
+              scopusId: "$scopusId" 
+            },
             displayId: { $first: "$authorName" },
             department: { $first: "$department" },
+            scopusId: { $first: "$scopusId" },
             paperCount: { $sum: 1 },
             citationCount: { $sum: "$citedBy" }
           }
@@ -1635,6 +1642,7 @@ module.exports = {
           $project: {
             _id: "$displayId",
             department: 1,
+            scopusId: 1,
             paperCount: 1,
             citationCount: 1
           }
@@ -1654,18 +1662,27 @@ module.exports = {
       const { name } = req.params;
       if (!name) return res.status(400).json({ error: 'Author name is required' });
 
-      // 1. Resolve canonical name if it's a teacher
+      const apiKey = process.env.SCOPUS_API_KEY;
+      const axios = require('axios');
+      const Teacher = require('../models/Teacher');
+      const ShardaAuthor = require('../models/ShardaAuthor');
+      const JournalQuartile = require('../models/JournalQuartile');
+
+      // Helper to escape regex special chars
+      const escapeRegExp = (string) => {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      };
+
+      // 1. Resolve canonical teacher name
       const teachers = await Teacher.find({}).lean();
       let searchName = name;
       let matchedTeacher = teachers.find(t => t.email && name.toLowerCase().includes(t.email.toLowerCase()));
       
       if (!matchedTeacher) {
-        // Try exact name match
         matchedTeacher = teachers.find(t => t.name.toLowerCase() === name.toLowerCase());
       }
       
       if (!matchedTeacher) {
-        // Try loose match using matchNames utility
         const { matchNames } = require('../utils/nameMatcher');
         matchedTeacher = teachers.find(t => matchNames(t.name, name));
       }
@@ -1673,156 +1690,566 @@ module.exports = {
       let searchRegex;
       if (matchedTeacher) {
         searchName = matchedTeacher.name;
-        // If we matched a teacher, we want ALL variants of their name that we might have in ShardaAuthor
-        // But since our new extraction uses the canonical name, we mainly search for that.
-        // For backwards compatibility with old data (if any), we keep a flexible search.
-        const parts = searchName.split(' ');
-        const pattern = parts.map(p => `(?=.*${p})`).join('');
+        const parts = searchName.split(' ').filter(p => p);
+        const pattern = parts.map(p => `(?=.*${escapeRegExp(p)})`).join('');
         searchRegex = new RegExp(`^${pattern}.*$`, 'i');
       } else if (name.includes(' ')) {
-        const parts = name.split(' ');
-        const pattern = parts.map(p => `(?=.*${p})`).join('');
+        const parts = name.split(' ').filter(p => p);
+        const pattern = parts.map(p => `(?=.*${escapeRegExp(p)})`).join('');
         searchRegex = new RegExp(`^${pattern}.*$`, 'i');
       } else {
-        searchRegex = new RegExp(name, 'i');
+        searchRegex = new RegExp(escapeRegExp(name), 'i');
       }
 
-      const papers = await ShardaAuthor.find({ authorName: searchRegex }).sort({ year: -1 });
-
-      if (!papers.length) {
-        return res.status(404).json({ error: 'Author not found' });
-      }
-
-      // 2. Calculate basic stats
-      const totalPapers = papers.length;
-      const totalCitations = papers.reduce((sum, p) => sum + (p.citedBy || 0), 0);
-      const department = papers[0].department || 'NA';
-
-      // 3. Calculate H-Index
-      const citations = papers.map(p => p.citedBy || 0).sort((a, b) => b - a);
-      let hIndex = 0;
-      for (let i = 0; i < citations.length; i++) {
-        if (citations[i] >= i + 1) {
-          hIndex = i + 1;
+      // Check if the requested name is already a numeric Scopus ID
+      let scopusId = null;
+      if (/^\d{5,15}$/.test(name)) {
+        scopusId = name;
+        matchedTeacher = teachers.find(t => t.scopusId === name);
+        if (matchedTeacher) {
+          searchName = matchedTeacher.name;
         } else {
-          break;
+          const dbAuthor = await ShardaAuthor.findOne({ scopusId: name }).select('authorName').lean();
+          if (dbAuthor) {
+            searchName = dbAuthor.authorName;
+          }
+        }
+      } else if (matchedTeacher && matchedTeacher.scopusId) {
+        scopusId = matchedTeacher.scopusId;
+      } else {
+        // Find in ShardaAuthor
+        const dbAuthor = await ShardaAuthor.findOne({
+          authorName: searchRegex,
+          scopusId: { $exists: true, $ne: '' }
+        }).select('scopusId').lean();
+        if (dbAuthor) {
+          scopusId = dbAuthor.scopusId;
         }
       }
 
-      // 4. Yearly Distribution
-      const yearlyStats = {};
-      papers.forEach(p => {
-        const y = p.year || 'Unknown';
-        yearlyStats[y] = (yearlyStats[y] || 0) + 1;
-      });
+      // If we got a scopusId but didn't have matchedTeacher, try resolving it by scopusId now
+      if (scopusId && !matchedTeacher) {
+        matchedTeacher = teachers.find(t => t.scopusId === scopusId);
+        if (matchedTeacher) {
+          searchName = matchedTeacher.name;
+        }
+      }
 
-      // 5. Quartile Distribution (Enrich with JournalQuartile cache)
-      const JournalQuartile = require('../models/JournalQuartile');
-      // Fetch all cached quartiles and build a case-insensitive map (only ~3500 records)
-      const jqs = await JournalQuartile.find({}).lean();
-      const qCache = new Map();
-      jqs.forEach(q => qCache.set((q.journalKey || '').toLowerCase().trim(), q.quartile));
-
-      const quartiles = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 };
-      papers.forEach(p => {
-        const sourceKey = (p.sourcePaper || '').toLowerCase().trim();
-        const bestQuartile = p.quartile || qCache.get(sourceKey);
-
-        if (bestQuartile) {
-          let q = bestQuartile.toUpperCase().trim();
-          if (['Q1', 'Q2', 'Q3', 'Q4'].includes(q)) {
-            quartiles[q]++;
+      // If we still don't have a Scopus ID, search Scopus Author Search API dynamically
+      if (!scopusId && apiKey) {
+        try {
+          const parts = searchName.split(/\s+/).filter(p => !!p);
+          let authorQuery = '';
+          if (parts.length >= 2) {
+            const surname = parts[parts.length - 1];
+            const givenName = parts.slice(0, -1).join(' ');
+            authorQuery = `AUTHLAST(${surname}) AND AUTHFIRST(${givenName}) AND AFFIL(Sharda)`;
           } else {
-            quartiles.NA++;
+            authorQuery = `(AUTHLAST(${searchName}) OR AUTHFIRST(${searchName})) AND AFFIL(Sharda)`;
           }
-        } else {
-          quartiles.NA++;
+          const searchUrl = `https://api.elsevier.com/content/search/author?query=${encodeURIComponent(authorQuery)}`;
+          const searchRes = await axios.get(searchUrl, {
+            headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json' },
+            timeout: 5000
+          });
+          const entries = searchRes.data['search-results']?.entry || [];
+          if (entries.length > 0) {
+            const match = entries[0];
+            const foundId = match['dc:identifier']?.replace('AUTHOR_ID:', '');
+            if (foundId) {
+              scopusId = foundId;
+              console.log(`[SCOPUS-SYNC] Dynamically found Scopus ID ${scopusId} for author ${searchName}`);
+              // Persist dynamically found ID
+              if (matchedTeacher) {
+                await Teacher.updateOne({ _id: matchedTeacher._id }, { $set: { scopusId: foundId } });
+              }
+              await ShardaAuthor.updateMany({ authorName: searchRegex }, { $set: { scopusId: foundId } });
+            }
+          }
+        } catch (err) {
+          console.error('[SCOPUS-SYNC] Dynamic author search failed:', err.message);
         }
-      });
+      }
 
-      // 6. Collaboration Network (Synergy Map) - Chord Diagram Data
-      const paperTitles = papers.map(p => p.paperTitle).filter(t => t);
+      // Setup warning / validation fields
+      let validation = { isValid: true, warnings: [] };
+      let officialProfile = null;
+      let papers = [];
+      let department = matchedTeacher?.department || 'NA';
 
-      // Step A: Find top 10 unique Sharda co-authors
-      const topCollaborators = await ShardaAuthor.aggregate([
-        {
-          $match: {
-            paperTitle: { $in: paperTitles },
-            authorName: { $not: searchRegex } // Exclude the main author flexibly
+      // Define local fallback execution to avoid duplicating code
+      const runLocalFallback = async (localWarning) => {
+        validation.isValid = false;
+        if (localWarning) validation.warnings.push(localWarning);
+        validation.warnings.push('Metrics generated from local database records and may not be fully synchronized.');
+        
+        const localPapers = await ShardaAuthor.find({ authorName: searchRegex }).sort({ year: -1 });
+        if (!localPapers.length) {
+          throw new Error('Author not found in local database or Scopus.');
+        }
+
+        const totalPapers = localPapers.length;
+        const totalCitations = localPapers.reduce((sum, p) => sum + (p.citedBy || 0), 0);
+        if (localPapers[0].department) {
+          department = localPapers[0].department;
+        }
+
+        const citations = localPapers.map(p => p.citedBy || 0).sort((a, b) => b - a);
+        let hIndex = 0;
+        for (let i = 0; i < citations.length; i++) {
+          if (citations[i] >= i + 1) hIndex = i + 1;
+          else break;
+        }
+
+        const yearlyStats = {};
+        localPapers.forEach(p => {
+          const y = p.year || 'Unknown';
+          yearlyStats[y] = (yearlyStats[y] || 0) + 1;
+        });
+
+        const jqs = await JournalQuartile.find({}).lean();
+        const qCache = new Map();
+        jqs.forEach(q => qCache.set((q.journalKey || '').toLowerCase().trim(), q.quartile));
+
+        const quartiles = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 };
+        const mappedPapers = localPapers.map(p => {
+          const sourceKey = (p.sourcePaper || '').toLowerCase().trim();
+          const q = p.quartile || qCache.get(sourceKey) || 'NA';
+          const normalizedQ = ['Q1', 'Q2', 'Q3', 'Q4'].includes(q.toUpperCase().trim()) ? q.toUpperCase().trim() : 'NA';
+          quartiles[normalizedQ]++;
+          
+          return {
+            paperTitle: p.paperTitle,
+            year: p.year,
+            publicationDate: p.publicationDate,
+            citedBy: p.citedBy || 0,
+            sourcePaper: p.sourcePaper,
+            publisher: p.publisher,
+            link: p.link,
+            paperType: p.paperType || 'Other',
+            doi: p.doi,
+            quartile: normalizedQ
+          };
+        });
+
+        // Synergy / Chord diagram data
+        const paperTitles = localPapers.map(p => p.paperTitle).filter(t => t);
+        const topCollaborators = await ShardaAuthor.aggregate([
+          {
+            $match: {
+              paperTitle: { $in: paperTitles },
+              authorName: { $not: searchRegex }
+            }
+          },
+          {
+            $group: {
+              _id: { $toLower: "$authorName" },
+              originalNames: { $addToSet: "$authorName" },
+              department: { $first: "$department" },
+              jointWithTarget: { $sum: 1 }
+            }
+          },
+          { $sort: { jointWithTarget: -1 } },
+          { $limit: 10 }
+        ]).allowDiskUse(true);
+
+        const normalizedMainAuthor = searchName.toLowerCase();
+        const mainAuthorOriginalNames = [...new Set(localPapers.map(p => p.authorName))];
+        let allOriginalMemberNames = [...mainAuthorOriginalNames];
+
+        const nodes = [
+          { id: normalizedMainAuthor, name: searchName.toUpperCase(), department: department, isTarget: true, weight: totalPapers }
+        ];
+
+        topCollaborators.forEach(c => {
+          allOriginalMemberNames.push(...c.originalNames);
+          nodes.push({ id: c._id, name: c.originalNames[0], department: c.department || 'NA', weight: c.jointWithTarget });
+        });
+
+        const interConnections = await ShardaAuthor.aggregate([
+          { $match: { authorName: { $in: allOriginalMemberNames } } },
+          {
+            $group: {
+              _id: "$paperTitle",
+              authors: { $addToSet: { $toLower: "$authorName" } }
+            }
           }
-        },
-        {
-          $group: {
-            _id: { $toLower: "$authorName" }, // Normalize matching casing
-            originalNames: { $addToSet: "$authorName" }, // Keep variants to query efficiently later
-            department: { $first: "$department" },
-            jointWithTarget: { $sum: 1 }
+        ]).allowDiskUse(true);
+
+        const links = [];
+        const linkMap = {};
+        interConnections.forEach(paper => {
+          const authors = paper.authors;
+          for (let i = 0; i < authors.length; i++) {
+            for (let j = i + 1; j < authors.length; j++) {
+              const pair = [authors[i], authors[j]].sort().join('|');
+              linkMap[pair] = (linkMap[pair] || 0) + 1;
+            }
           }
-        },
-        { $sort: { jointWithTarget: -1 } },
-        { $limit: 10 }
-      ]).allowDiskUse(true);
+        });
 
-      const normalizedMainAuthor = name.toLowerCase();
-      // Collect all exact casing variants for efficient indexed querying in Step B
-      const mainAuthorOriginalNames = [...new Set(papers.map(p => p.authorName))];
-      let allOriginalMemberNames = [...mainAuthorOriginalNames];
+        Object.keys(linkMap).forEach(pair => {
+          const [a1, a2] = pair.split('|');
+          links.push({ source: a1, target: a2, value: linkMap[pair] });
+        });
 
-      const nodes = [
-        { id: normalizedMainAuthor, name: name.toUpperCase(), department: department, isTarget: true, weight: totalPapers }
-      ];
+        return {
+          name: searchName,
+          department,
+          totalPapers,
+          totalCitations,
+          hIndex,
+          yearlyStats,
+          quartiles,
+          collaborationNetwork: { nodes, links },
+          papers: mappedPapers,
+          validation
+        };
+      };
 
-      topCollaborators.forEach(c => {
-        allOriginalMemberNames.push(...c.originalNames);
-        nodes.push({ id: c._id, name: c.originalNames[0], department: c.department || 'NA', weight: c.jointWithTarget });
-      });
+      if (!scopusId || !apiKey) {
+        const localData = await runLocalFallback(!apiKey ? 'Scopus API Key is missing. Sync disabled.' : 'No associated Scopus Author ID found.');
+        return res.json(localData);
+      }
 
-      // Step B: Find all connections between ANY of these members
-      const interConnections = await ShardaAuthor.aggregate([
-        {
-          $match: {
-            authorName: { $in: allOriginalMemberNames }
-          }
-        },
-        {
-          $group: {
-            _id: "$paperTitle",
-            authors: { $addToSet: { $toLower: "$authorName" } } // Map variants to lowercase for connection matrix
+      // 2. Fetch official Scopus profile & papers with Axios
+      try {
+        const profileUrl = `https://api.elsevier.com/content/author/author_id/${scopusId}?view=ENHANCED`;
+        const profileRes = await axios.get(profileUrl, {
+          headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json' },
+          timeout: 10000
+        });
+
+        const authorProfile = profileRes.data['author-retrieval-response']?.[0];
+        if (!authorProfile) {
+          throw new Error('Empty response from Scopus Author Retrieval.');
+        }
+
+        // Detect profile redirects/merges
+        const canonicalId = authorProfile['coredata']?.['dc:identifier']?.replace('AUTHOR_ID:', '');
+        if (canonicalId && canonicalId !== scopusId) {
+          console.log(`[SCOPUS-MERGE] Detected merged profile. Updating ${scopusId} -> ${canonicalId}`);
+          validation.warnings.push(`Profile updated: Scopus ID ${scopusId} has been merged into canonical ID ${canonicalId}.`);
+          
+          // Heal database
+          await Teacher.updateMany({ scopusId: scopusId }, { $set: { scopusId: canonicalId } });
+          await ShardaAuthor.updateMany({ scopusId: scopusId }, { $set: { scopusId: canonicalId } });
+          
+          scopusId = canonicalId; // Proceed with canonical ID
+        }
+
+        const officialName = (() => {
+          const pref = authorProfile['author-profile']?.['preferred-name'];
+          if (!pref) return searchName;
+          const { surname, 'given-name': givenName } = pref;
+          return `${givenName || ''} ${surname || ''}`.trim();
+        })();
+
+        const officialDocCount = parseInt(authorProfile['coredata']?.['document-count'] || '0', 10);
+        const officialCitationCount = parseInt(authorProfile['coredata']?.['citation-count'] || '0', 10);
+        const officialHIndex = parseInt(authorProfile['h-index'] || '0', 10);
+        const officialCoauthorCount = parseInt(authorProfile['coauthor-count'] || '0', 10);
+
+        officialProfile = {
+          name: officialName,
+          scopusId: scopusId,
+          documentCount: officialDocCount,
+          citationCount: officialCitationCount,
+          hIndex: officialHIndex,
+          coauthorCount: officialCoauthorCount,
+          link: authorProfile['coredata']?.['link']?.find(l => l['@rel'] === 'scopus-author')?.['@href']
+        };
+
+        // 3. Fetch publications list from Scopus Search API
+        let allApiPapers = [];
+        let start = 0;
+        const countLimit = 200;
+        let hasMore = true;
+
+        while (hasMore) {
+          const searchUrl = `https://api.elsevier.com/content/search/scopus?query=AU-ID(${scopusId})&start=${start}&count=${countLimit}&sort=coverDate`;
+          const searchRes = await axios.get(searchUrl, {
+            headers: { 'X-ELS-APIKey': apiKey, 'Accept': 'application/json' },
+            timeout: 10000
+          });
+          const searchResults = searchRes.data['search-results'];
+          const entries = searchResults?.entry || [];
+          allApiPapers = allApiPapers.concat(entries);
+          
+          const totalResults = parseInt(searchResults?.['opensearch:totalResults'] || '0', 10);
+          start += entries.length;
+          if (entries.length === 0 || start >= totalResults || start >= 1000) {
+            hasMore = false;
           }
         }
-      ]).allowDiskUse(true);
 
-      const links = [];
-      const linkMap = {};
-
-      interConnections.forEach(paper => {
-        const authors = paper.authors;
-        for (let i = 0; i < authors.length; i++) {
-          for (let j = i + 1; j < authors.length; j++) {
-            const pair = [authors[i], authors[j]].sort().join('|');
-            linkMap[pair] = (linkMap[pair] || 0) + 1;
+        // 4. Deduplicate entries
+        const seenEids = new Set();
+        const uniqueEntries = [];
+        allApiPapers.forEach(entry => {
+          const eid = entry.eid || entry['dc:identifier'];
+          if (eid && !seenEids.has(eid)) {
+            seenEids.add(eid);
+            uniqueEntries.push(entry);
           }
+        });
+
+        // 5. Gather Quartiles lookup keys (ISSN, EISSN, Journal Title)
+        const journalKeys = new Set();
+        uniqueEntries.forEach(entry => {
+          if (entry['prism:issn']) journalKeys.add(entry['prism:issn'].trim());
+          if (entry['prism:eIssn']) journalKeys.add(entry['prism:eIssn'].trim());
+          if (entry['prism:publicationName']) journalKeys.add(entry['prism:publicationName'].toLowerCase().trim());
+        });
+
+        const jqs = await JournalQuartile.find({
+          journalKey: { $in: Array.from(journalKeys) }
+        }).lean();
+
+        const qCache = new Map();
+        jqs.forEach(q => {
+          qCache.set(q.journalKey.toLowerCase().trim(), q.quartile);
+        });
+
+        // Helper to map publication types to standard Scopus document types
+        const mapScopusDocType = (subtype, subtypeDescription) => {
+          const code = (subtype || '').toLowerCase().trim();
+          const desc = (subtypeDescription || '').toLowerCase().trim();
+          
+          if (code === 'ar' || desc === 'article') return 'Article';
+          if (code === 'cp' || desc === 'conference paper' || desc.includes('proceeding')) return 'Conference Paper';
+          if (code === 're' || desc === 'review') return 'Review';
+          if (code === 'bk' || desc === 'book') return 'Book';
+          if (code === 'ch' || desc === 'book chapter' || desc.includes('chapter')) return 'Book Chapter';
+          if (code === 'ed' || desc === 'editorial') return 'Editorial';
+          if (code === 'er' || desc === 'erratum') return 'Erratum';
+          if (code === 'no' || desc === 'note') return 'Note';
+          if (code === 'sh' || desc === 'short survey') return 'Short Survey';
+          if (code === 'le' || desc === 'letter') return 'Letter';
+          if (code === 'pl' || desc === 'press release') return 'Press Release';
+          if (code === 'tb' || desc === 'tombstone') return 'Tombstone';
+          if (code === 'rp' || desc === 'report') return 'Report';
+          if (code === 'dp' || desc === 'data paper') return 'Data Paper';
+          if (code === 'cr' || desc === 'conference review') return 'Conference Review';
+          if (code === 'ip' || desc === 'article in press') return 'Article in Press';
+          
+          if (desc) return desc.charAt(0).toUpperCase() + desc.slice(1);
+          return 'Other';
+        };
+
+        // 6. Map and process each publication
+        let missingDoisCount = 0;
+        let missingQuartilesCount = 0;
+        const missingQuartileJournals = [];
+
+        const quartiles = { Q1: 0, Q2: 0, Q3: 0, Q4: 0, NA: 0 };
+        const yearlyStats = {};
+
+        papers = uniqueEntries.map(entry => {
+          const title = entry['dc:title'] || 'Untitled';
+          const covDate = entry['prism:coverDate'];
+          const year = covDate ? parseInt(covDate.substring(0, 4), 10) : entry.year || 0;
+          const citedBy = parseInt(entry['citedby-count'] || '0', 10);
+          const sourcePaper = entry['prism:publicationName'] || '';
+          
+          // Link structure parsing
+          let link = entry['prism:doi'] ? `https://doi.org/${entry['prism:doi']}` : '';
+          const scopusLink = entry['link']?.find(l => l['@ref'] === 'scopus')?.['@href'];
+          if (scopusLink) link = scopusLink;
+
+          const doi = entry['prism:doi'] || '';
+          if (!doi) missingDoisCount++;
+
+          const paperType = mapScopusDocType(entry.subtype, entry.subtypeDescription);
+
+          // Resolve quartile from cache
+          let quartile = 'NA';
+          const issn = entry['prism:issn']?.trim();
+          const eissn = entry['prism:eIssn']?.trim();
+          const sourceKey = sourcePaper.toLowerCase().trim();
+
+          if (issn && qCache.has(issn)) {
+            quartile = qCache.get(issn);
+          } else if (eissn && qCache.has(eissn)) {
+            quartile = qCache.get(eissn);
+          } else if (sourceKey && qCache.has(sourceKey)) {
+            quartile = qCache.get(sourceKey);
+          } else {
+            // Quartile missing - track for background enrichment
+            missingQuartilesCount++;
+            missingQuartileJournals.push({
+              title: sourcePaper,
+              issn: issn || eissn || ''
+            });
+          }
+
+          const qUpper = quartile.toUpperCase().trim();
+          const finalQuartile = ['Q1', 'Q2', 'Q3', 'Q4'].includes(qUpper) ? qUpper : 'NA';
+          quartiles[finalQuartile]++;
+
+          if (year) {
+            yearlyStats[year] = (yearlyStats[year] || 0) + 1;
+          }
+
+          return {
+            paperTitle: title,
+            year: year || 'Unknown',
+            publicationDate: covDate,
+            citedBy,
+            sourcePaper,
+            link,
+            paperType,
+            doi,
+            quartile: finalQuartile
+          };
+        });
+
+        // Sort papers by year desc
+        papers.sort((a, b) => {
+          if (b.year !== a.year) return (b.year === 'Unknown' ? 0 : b.year) - (a.year === 'Unknown' ? 0 : a.year);
+          return b.citedBy - a.citedBy;
+        });
+
+        // Trigger background resolution for missing quartiles
+        if (missingQuartileJournals.length > 0 && apiKey) {
+          (async () => {
+            const pLimit = require('p-limit');
+            const limit = pLimit(3);
+            const tasks = missingQuartileJournals.map(m => limit(async () => {
+              try {
+                const q = await fetchQuartile(m.title, m.issn, apiKey);
+                if (q) {
+                  await JournalQuartile.updateOne(
+                    { journalKey: m.issn || m.title },
+                    { $set: { quartile: q, lastUpdated: new Date() } },
+                    { upsert: true }
+                  );
+                }
+              } catch (err) {
+                console.error(`[QUARTILE-SYNC] Background fetching failed for ${m.title}:`, err.message);
+              }
+            }));
+            await Promise.all(tasks);
+          })();
         }
-      });
 
-      Object.keys(linkMap).forEach(pair => {
-        const [a1, a2] = pair.split('|');
-        links.push({ source: a1, target: a2, value: linkMap[pair] });
-      });
+        // Recalculate metrics on unique validated publications
+        const totalPapers = papers.length;
+        const totalCitations = papers.reduce((sum, p) => sum + p.citedBy, 0);
 
-      res.json({
-        name,
-        department,
-        totalPapers,
-        totalCitations,
-        hIndex,
-        yearlyStats,
-        quartiles,
-        collaborationNetwork: { nodes, links },
-        papers
-      });
+        const citationList = papers.map(p => p.citedBy).sort((a, b) => b - a);
+        let calculatedHIndex = 0;
+        for (let i = 0; i < citationList.length; i++) {
+          if (citationList[i] >= i + 1) calculatedHIndex = i + 1;
+          else break;
+        }
+
+        // 7. Collaboration Network using validated paper titles
+        const validatedTitles = papers.map(p => p.paperTitle).filter(t => t);
+        const topCollaborators = await ShardaAuthor.aggregate([
+          {
+            $match: {
+              paperTitle: { $in: validatedTitles },
+              authorName: { $not: searchRegex }
+            }
+          },
+          {
+            $group: {
+              _id: { $toLower: "$authorName" },
+              originalNames: { $addToSet: "$authorName" },
+              department: { $first: "$department" },
+              jointWithTarget: { $sum: 1 }
+            }
+          },
+          { $sort: { jointWithTarget: -1 } },
+          { $limit: 10 }
+        ]).allowDiskUse(true);
+
+        const normalizedMainAuthor = searchName.toLowerCase();
+        const mainAuthorOriginalNames = [...new Set(papers.map(p => p.authorName || searchName))];
+        let allOriginalMemberNames = [...mainAuthorOriginalNames];
+
+        const nodes = [
+          { id: normalizedMainAuthor, name: searchName.toUpperCase(), department: department, isTarget: true, weight: totalPapers }
+        ];
+
+        topCollaborators.forEach(c => {
+          allOriginalMemberNames.push(...c.originalNames);
+          nodes.push({ id: c._id, name: c.originalNames[0], department: c.department || 'NA', weight: c.jointWithTarget });
+        });
+
+        const interConnections = await ShardaAuthor.aggregate([
+          { $match: { authorName: { $in: allOriginalMemberNames } } },
+          {
+            $group: {
+              _id: "$paperTitle",
+              authors: { $addToSet: { $toLower: "$authorName" } }
+            }
+          }
+        ]).allowDiskUse(true);
+
+        const links = [];
+        const linkMap = {};
+        interConnections.forEach(paper => {
+          const authors = paper.authors;
+          for (let i = 0; i < authors.length; i++) {
+            for (let j = i + 1; j < authors.length; j++) {
+              const pair = [authors[i], authors[j]].sort().join('|');
+              linkMap[pair] = (linkMap[pair] || 0) + 1;
+            }
+          }
+        });
+
+        Object.keys(linkMap).forEach(pair => {
+          const [a1, a2] = pair.split('|');
+          links.push({ source: a1, target: a2, value: linkMap[pair] });
+        });
+
+        // 8. Validation Warnings
+        if (officialDocCount !== totalPapers) {
+          validation.isValid = false;
+          validation.warnings.push(`Paper count mismatch: Scopus Profile shows ${officialDocCount} papers but only ${totalPapers} were retrieved.`);
+        }
+        if (officialCitationCount !== totalCitations) {
+          validation.isValid = false;
+          validation.warnings.push(`Citation count mismatch: Scopus Profile shows ${officialCitationCount} citations but sum of publications' citations is ${totalCitations}.`);
+        }
+        if (officialHIndex !== calculatedHIndex) {
+          validation.isValid = false;
+          validation.warnings.push(`H-Index mismatch: Scopus Profile shows H-Index of ${officialHIndex} but computed H-Index is ${calculatedHIndex}.`);
+        }
+        if (missingDoisCount > 0) {
+          validation.warnings.push(`${missingDoisCount} publications are missing DOIs.`);
+        }
+        if (missingQuartilesCount > 0) {
+          validation.warnings.push(`${missingQuartilesCount} publications are missing Quartile rankings.`);
+        }
+
+        const finalName = officialName || searchName;
+
+        res.json({
+          name: finalName,
+          department,
+          totalPapers,
+          totalCitations,
+          hIndex: calculatedHIndex,
+          coauthorCount: officialCoauthorCount,
+          yearlyStats,
+          quartiles,
+          collaborationNetwork: { nodes, links },
+          papers,
+          validation,
+          officialProfile
+        });
+
+      } catch (scopusErr) {
+        console.error('[SCOPUS-SYNC] API execution failed. Falling back to local records:', scopusErr.message);
+        const localData = await runLocalFallback(`Scopus Profile sync failed: ${scopusErr.message}`);
+        return res.json(localData);
+      }
 
     } catch (err) {
+      console.error('[SCOPUS-SYNC] Critical error in getAuthorStats:', err.message);
       res.status(500).json({ error: err.message });
     }
   },

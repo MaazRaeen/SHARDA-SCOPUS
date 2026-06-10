@@ -37,7 +37,10 @@
                     <div class="suggestion-avatar">{{ suggestion._id.charAt(0).toUpperCase() }}</div>
                     <div class="suggestion-info">
                         <div class="suggestion-name">{{ suggestion._id | authorName }}</div>
-                        <div class="suggestion-dept">{{ suggestion.department }}</div>
+                        <div class="suggestion-dept">
+                            {{ suggestion.department || 'Department N/A' }}
+                            <span *ngIf="suggestion.scopusId" class="suggestion-sid"> • ID: {{ suggestion.scopusId }}</span>
+                        </div>
                     </div>
                     <div class="suggestion-meta">
                         <span>{{ suggestion.paperCount }} papers</span>
@@ -56,12 +59,15 @@
     <!-- Results Grid -->
     <div *ngIf="!isLoading && authors.length > 0" class="results-grid">
         <div class="author-card" *ngFor="let author of authors; trackBy: trackByAuthorId"
-            (click)="viewStats(author._id)">
+            (click)="viewStats(author.scopusId || author._id)">
             <div class="card-top">
                 <div class="avatar">{{ author._id.charAt(0).toUpperCase() }}</div>
                 <div class="card-info">
                     <h3 class="card-name" [title]="author._id">{{ author._id | authorName }}</h3>
-                    <p class="card-dept" [title]="author.department">{{ author.department || 'Department N/A' }}</p>
+                    <p class="card-dept" [title]="author.department">
+                        {{ author.department || 'Department N/A' }}
+                        <span *ngIf="author.scopusId" class="card-sid"> • ID: {{ author.scopusId }}</span>
+                    </p>
                 </div>
             </div>
             <div class="card-stats">
@@ -106,25 +112,60 @@
                 <div class="profile-identity">
                     <div class="profile-avatar">{{ selectedAuthor.name.charAt(0).toUpperCase() }}</div>
                     <div>
-                        <h2 class="profile-name">{{ selectedAuthor.name | authorName }}</h2>
-                        <p class="profile-dept">{{ selectedAuthor.department }}</p>
+                        <h2 class="profile-name">
+                            {{ selectedAuthor.name | authorName }}
+                            <!-- Verified Sync Badge -->
+                            <span class="verified-sync-badge" *ngIf="selectedAuthor.validation && selectedAuthor.validation.isValid" title="Fully synchronized and validated with official Scopus Author Profile">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                Verified Scopus Sync
+                            </span>
+                            <!-- Unverified Sync Badge -->
+                            <span class="unverified-sync-badge" *ngIf="selectedAuthor.validation && !selectedAuthor.validation.isValid" title="Metrics differ from official Scopus Profile. Review sync warnings below.">
+                                ⚠️ Sync Warnings
+                            </span>
+                        </h2>
+                        <p class="profile-dept">
+                            {{ selectedAuthor.department || 'Department N/A' }}
+                            <span *ngIf="selectedAuthor.officialProfile?.scopusId || selectedAuthor.scopusId" class="profile-scopus-id">
+                                • Scopus ID: {{ selectedAuthor.officialProfile?.scopusId || selectedAuthor.scopusId }}
+                            </span>
+                        </p>
                     </div>
                 </div>
                 <div class="profile-metrics">
-                    <div class="metric-pill">
-                        <span class="metric-value">{{ selectedAuthor.totalPapers }}</span>
+                    <div class="metric-pill" title="Total publications for active filters">
+                        <span class="metric-value">{{ filteredTotalPapers }}</span>
                         <span class="metric-label">Papers</span>
                     </div>
-                    <div class="metric-pill">
-                        <span class="metric-value">{{ selectedAuthor.totalCitations }}</span>
+                    <div class="metric-pill" title="Total citations for active filters">
+                        <span class="metric-value">{{ filteredTotalCitations }}</span>
                         <span class="metric-label">Citations</span>
                     </div>
-                    <div class="metric-pill">
-                        <span class="metric-value">{{ selectedAuthor.hIndex }}</span>
+                    <div class="metric-pill" title="H-Index calculated dynamically on active filters">
+                        <span class="metric-value">{{ filteredHIndex }}</span>
                         <span class="metric-label">H-Index</span>
+                    </div>
+                    <!-- Co-Authors Count directly from Scopus profile -->
+                    <div class="metric-pill" *ngIf="selectedAuthor.coauthorCount" title="Total co-authors from Scopus Profile">
+                        <span class="metric-value">{{ selectedAuthor.coauthorCount }}</span>
+                        <span class="metric-label">Co-Authors</span>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Validation Warnings Banner -->
+        <div class="validation-banner" *ngIf="selectedAuthor.validation && selectedAuthor.validation.warnings && selectedAuthor.validation.warnings.length > 0">
+            <div class="banner-header">
+                <span class="warning-icon">⚠️</span>
+                <span class="banner-title">Scopus Profile Synchronization Alert</span>
+                <span class="banner-subtitle">Some metrics differ from the official Scopus Profile or have details needing attention:</span>
+            </div>
+            <ul class="warning-list">
+                <li *ngFor="let warning of selectedAuthor.validation.warnings">{{ warning }}</li>
+            </ul>
         </div>
 
         <!-- Modal Body -->
@@ -137,45 +178,47 @@
                     <div class="quartile-bar-wrapper">
                         <!-- Q1 -->
                         <div class="q-bar q1-bg"
-                            [style.width.%]="(selectedAuthor.quartiles.Q1 / selectedAuthor.totalPapers) * 100"
-                            *ngIf="selectedAuthor.quartiles.Q1 > 0" title="Q1: {{selectedAuthor.quartiles.Q1}} papers">
-                            <span *ngIf="(selectedAuthor.quartiles.Q1 / selectedAuthor.totalPapers) >= 0.06">Q1</span>
+                            [style.width.%]="(filteredQuartiles.Q1 / (filteredTotalPapers || 1)) * 100"
+                            *ngIf="filteredQuartiles.Q1 > 0" title="Q1: {{filteredQuartiles.Q1}} papers">
+                            <span *ngIf="(filteredQuartiles.Q1 / (filteredTotalPapers || 1)) >= 0.06">Q1</span>
                         </div>
                         <!-- Q2 -->
                         <div class="q-bar q2-bg"
-                            [style.width.%]="(selectedAuthor.quartiles.Q2 / selectedAuthor.totalPapers) * 100"
-                            *ngIf="selectedAuthor.quartiles.Q2 > 0" title="Q2: {{selectedAuthor.quartiles.Q2}} papers">
-                            <span *ngIf="(selectedAuthor.quartiles.Q2 / selectedAuthor.totalPapers) >= 0.06">Q2</span>
+                            [style.width.%]="(filteredQuartiles.Q2 / (filteredTotalPapers || 1)) * 100"
+                            *ngIf="filteredQuartiles.Q2 > 0" title="Q2: {{filteredQuartiles.Q2}} papers">
+                            <span *ngIf="(filteredQuartiles.Q2 / (filteredTotalPapers || 1)) >= 0.06">Q2</span>
                         </div>
                         <!-- Q3 -->
                         <div class="q-bar q3-bg"
-                            [style.width.%]="(selectedAuthor.quartiles.Q3 / selectedAuthor.totalPapers) * 100"
-                            *ngIf="selectedAuthor.quartiles.Q3 > 0" title="Q3: {{selectedAuthor.quartiles.Q3}} papers">
-                            <span *ngIf="(selectedAuthor.quartiles.Q3 / selectedAuthor.totalPapers) >= 0.06">Q3</span>
+                            [style.width.%]="(filteredQuartiles.Q3 / (filteredTotalPapers || 1)) * 100"
+                            *ngIf="filteredQuartiles.Q3 > 0" title="Q3: {{filteredQuartiles.Q3}} papers">
+                            <span *ngIf="(filteredQuartiles.Q3 / (filteredTotalPapers || 1)) >= 0.06">Q3</span>
                         </div>
                         <!-- Q4 -->
                         <div class="q-bar q4-bg"
-                            [style.width.%]="(selectedAuthor.quartiles.Q4 / selectedAuthor.totalPapers) * 100"
-                            *ngIf="selectedAuthor.quartiles.Q4 > 0" title="Q4: {{selectedAuthor.quartiles.Q4}} papers">
-                            <span *ngIf="(selectedAuthor.quartiles.Q4 / selectedAuthor.totalPapers) >= 0.06">Q4</span>
+                            [style.width.%]="(filteredQuartiles.Q4 / (filteredTotalPapers || 1)) * 100"
+                            *ngIf="filteredQuartiles.Q4 > 0" title="Q4: {{filteredQuartiles.Q4}} papers">
+                            <span *ngIf="(filteredQuartiles.Q4 / (filteredTotalPapers || 1)) >= 0.06">Q4</span>
                         </div>
                         <!-- NA -->
                         <div class="q-bar qna-bg"
-                            [style.width.%]="(selectedAuthor.quartiles.NA / selectedAuthor.totalPapers) * 100"
-                            *ngIf="selectedAuthor.quartiles.NA > 0"
-                            title="Unassigned: {{selectedAuthor.quartiles.NA}} papers">
-                            <span *ngIf="(selectedAuthor.quartiles.NA / selectedAuthor.totalPapers) >= 0.06">NA</span>
+                            [style.width.%]="(filteredQuartiles.NA / (filteredTotalPapers || 1)) * 100"
+                            *ngIf="filteredQuartiles.NA > 0"
+                            title="Unassigned: {{filteredQuartiles.NA}} papers">
+                            <span *ngIf="(filteredQuartiles.NA / (filteredTotalPapers || 1)) >= 0.06">NA</span>
                         </div>
                     </div>
                     <div class="quartile-legend">
                         <span class="legend-item"><span class="legend-dot q1-bg"></span>Q1
-                            ({{selectedAuthor.quartiles.Q1}})</span>
+                            ({{filteredQuartiles.Q1}})</span>
                         <span class="legend-item"><span class="legend-dot q2-bg"></span>Q2
-                            ({{selectedAuthor.quartiles.Q2}})</span>
+                            ({{filteredQuartiles.Q2}})</span>
                         <span class="legend-item"><span class="legend-dot q3-bg"></span>Q3
-                            ({{selectedAuthor.quartiles.Q3}})</span>
+                            ({{filteredQuartiles.Q3}})</span>
                         <span class="legend-item"><span class="legend-dot q4-bg"></span>Q4
-                            ({{selectedAuthor.quartiles.Q4}})</span>
+                            ({{filteredQuartiles.Q4}})</span>
+                        <span class="legend-item"><span class="legend-dot qna-bg"></span>NA
+                            ({{filteredQuartiles.NA}})</span>
                     </div>
                 </div>
 
