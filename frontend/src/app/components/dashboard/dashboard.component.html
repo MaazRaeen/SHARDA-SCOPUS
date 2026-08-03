@@ -60,7 +60,8 @@
 
 
   <!-- ── Master Department Filter Bar ── -->
-  <div class="master-filter-bar" [class.has-filter]="selectedDept" *ngIf="!isPersonalDash">
+  <div class="master-filter-bar" [class.has-filter]="selectedDept || hasResearchIndex()" *ngIf="!isPersonalDash">
+
     <div class="filter-inner">
       <div class="filter-label">
         <span class="material-icons">filter_list</span>
@@ -160,6 +161,30 @@
           </div>
         </div>
       </div>
+
+      <!-- Research Productivity Index Filter Section -->
+      <div class="filter-rpi-wrap">
+        <div class="rpi-label">
+          <span class="material-icons">calculate</span>
+          <span>Research Productivity Index</span>
+        </div>
+        <div class="rpi-input-box" [class.active]="hasResearchIndex()">
+          <input type="number"
+                 class="rpi-input"
+                 placeholder="Enter index…"
+                 [(ngModel)]="customResearchIndex"
+                 (ngModelChange)="onResearchIndexChange()"
+                 min="1"
+                 step="any">
+          <button *ngIf="customResearchIndex !== null && customResearchIndex !== undefined && (customResearchIndex + '') !== ''"
+                  class="rpi-clear-btn"
+                  (click)="clearResearchIndex()"
+                  title="Clear Index">
+            <span class="material-icons">close</span>
+          </button>
+        </div>
+      </div>
+
 
       <!-- Loading indicator -->
       <div class="filter-loading" *ngIf="isLoading">
@@ -277,7 +302,7 @@
         </div>
       </div>
 
-      <!-- Avg Papers per Author -->
+      <!-- Avg Papers per Author / Research Productivity Index -->
       <div class="kpi-card kpi-amber">
         <div class="kpi-glow"></div>
         <div class="kpi-top">
@@ -291,13 +316,30 @@
           </div>
           <span class="kpi-trend kpi-trend-up">↑ Active</span>
         </div>
-        <div class="kpi-value">{{ analyticsData.totalAuthors > 0 ? ((analyticsData.totalPapers / analyticsData.totalAuthors) | number:'1.1-1') : '0' }}</div>
-        <div class="kpi-label">Avg Papers / Author</div>
-        <div class="kpi-desc">Research productivity index</div>
+        <div class="kpi-value">
+          <ng-container *ngIf="hasResearchIndex(); else defaultAvgValue">
+            {{ (analyticsData.totalPapers / customResearchIndex!) | number:'1.0-2' }}
+          </ng-container>
+          <ng-template #defaultAvgValue>
+            {{ analyticsData.totalAuthors > 0 ? ((analyticsData.totalPapers / analyticsData.totalAuthors) | number:'1.1-1') : '0' }}
+          </ng-template>
+        </div>
+        <div class="kpi-label">
+          {{ hasResearchIndex() ? 'Research Productivity Index' : 'Avg Papers / Author' }}
+        </div>
+        <div class="kpi-desc" [class.kpi-desc-active]="hasResearchIndex()">
+          <ng-container *ngIf="hasResearchIndex(); else defaultDesc">
+            Ratio: {{ analyticsData.totalPapers }} / {{ customResearchIndex }}
+          </ng-container>
+          <ng-template #defaultDesc>
+            Research productivity index
+          </ng-template>
+        </div>
         <div class="kpi-bar">
           <div class="kpi-bar-fill" style="width:75%"></div>
         </div>
       </div>
+
 
     </div>
 

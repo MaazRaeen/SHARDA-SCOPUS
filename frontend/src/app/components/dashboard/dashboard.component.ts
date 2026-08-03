@@ -112,6 +112,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     quartileChart: Chart | null = null;
     deptQuartileChart: Chart | null = null;
 
+    // --- Research Productivity Index Filter Property ---
+    customResearchIndex: number | null = null;
+
+
     // --- New Quartiles Dashboard Properties ---
     activeDashboardTab: 'overview' | 'quartiles' = 'overview';
     quartileCompareMode: 'absolute' | 'percentage' = 'percentage';
@@ -1129,6 +1133,24 @@ export class DashboardComponent implements OnInit, AfterViewInit {
         this.showDatePopover = false;
         this.loadAnalytics();
     }
+
+    hasResearchIndex(): boolean {
+        if (this.customResearchIndex === null || this.customResearchIndex === undefined || (this.customResearchIndex as any) === '') {
+            return false;
+        }
+        const val = Number(this.customResearchIndex);
+        return !isNaN(val) && val > 0;
+    }
+
+    clearResearchIndex(): void {
+        this.customResearchIndex = null;
+        this.cdr.markForCheck();
+    }
+
+    onResearchIndexChange(): void {
+        this.cdr.markForCheck();
+    }
+
 
     loadAnalytics(): void {
         this.isLoading = true;
